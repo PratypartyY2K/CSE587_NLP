@@ -261,8 +261,72 @@ def run_transformer_block_impl(d_model: int, num_heads: int, d_ff: int, max_seq_
     return out
 
 
-def run_transformer_lm_impl(*args, **kwargs):
-    """Placeholder for transformer LM forward; implemented later.
-    Exposed so tests can import symbol from adapters.
-    """
-    raise NotImplementedError("run_transformer_lm_impl is not implemented yet")
+def run_transformer_lm_impl(
+    vocab_size: int,
+    context_length: int,
+    d_model: int,
+    num_layers: int,
+    num_heads: int,
+    d_ff: int,
+    rope_theta: float,
+    weights: dict[str, Tensor],
+    in_indices: Tensor,
+) -> Tensor:
+    """Construct a TransformerLM, load provided weights into its parameters, and run a forward pass."""
+    from .transformer import TransformerLM
+
+    model = TransformerLM(vocab_size=vocab_size, context_length=context_length, d_model=d_model, num_layers=num_layers, num_heads=num_heads, d_ff=d_ff, rope_theta=rope_theta)
+
+    # Load token embeddings
+    if "token_embeddings.weight" in weights:
+        with torch.no_grad():
+            model.token_embeddings.weight.copy_(weights["token_embeddings.weight"])
+    # Load lm_head
+    if "lm_head.weight" in weights:
+        with torch.no_grad():
+            model.lm_head.copy_(weights["lm_head.weight"])
+    # Load ln_final
+    if "ln_final.weight" in weights:
+        with torch.no_grad():
+            model.ln_final.weight.copy_(weights["ln_final.weight"])
+
+    # Load layer weights
+    for i in range(num_layers):
+        prefix = f"layers.{i}."
+        layer_weights = {k[len(prefix):]: v for k, v in weights.items() if k.startswith(prefix)}
+        if not layer_weights:
+            continue
+        block = model.blocks[i]
+        # attention proj
+        for name in ["q_proj.weight", "k_proj.weight", "v_proj.weight", "output_proj.weight"]:
+            key = prefix + ("attn." + name)
+            if key in weights:
+                # map attn.output_proj.weight -> o_proj
+                if name == "output_proj.weight":
+                    with torch.no_grad():
+                        block.o_proj.copy_(weights[key])
+                else:
+                    # q,k,v
+                    param = getattr(block, name.split("_")[0] + "_proj")
+                    with torch.no_grad():
+                        param.copy_(weights[key])
+        # ln1, ln2
+        if prefix + "ln1.weight" in weights:
+            with torch.no_grad():
+                block.ln1.weight.copy_(weights[prefix + "ln1.weight"])
+        if prefix + "ln2.weight" in weights:
+            with torch.no_grad():
+                block.ln2.weight.copy_(weights[prefix + "ln2.weight"])
+        # ffn weights
+        if prefix + "ffn.w1.weight" in weights:
+            with torch.no_grad():
+                block.w1.copy_(weights[prefix + "ffn.w1.weight"])
+        if prefix + "ffn.w2.weight" in weights:
+            with torch.no_grad():
+                block.w2.copy_(weights[prefix + "ffn.w2.weight"])
+        if prefix + "ffn.w3.weight" in weights:
+            with torch.no_grad():
+                block.w3.copy_(weights[prefix + "ffn.w3.weight"])
+
+    x = torch.as_tensor(in_indices, dtype=torch.long)
+    return model(x)
