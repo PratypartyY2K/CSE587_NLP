@@ -167,3 +167,6 @@ data/
 
 # Ignore test artifacts
 tests/
+
+*.pkl
+*.prof
