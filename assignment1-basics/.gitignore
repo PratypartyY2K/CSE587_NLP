@@ -174,3 +174,9 @@ tests/
 /tokenizer_tokenizers_sample/vocab.json
 /out/encode_log.txt
 /tokenizer_tokenizers_sample/merges.txt
+
+# Ignore model tokenizer artifacts and encoded outputs
+models/tokenizers/
+out/encoded/
+out/*.bin
+out/*.log
