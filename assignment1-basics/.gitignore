@@ -180,3 +180,7 @@ models/tokenizers/
 out/encoded/
 out/*.bin
 out/*.log
+
+# Artifacts directory created for large tokenizer artifacts and encodings
+artifacts/
+artifacts/**
