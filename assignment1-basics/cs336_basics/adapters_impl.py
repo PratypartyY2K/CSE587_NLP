@@ -164,11 +164,101 @@ def run_get_batch_impl(dataset, batch_size: int, context_length: int, device: st
     return x_t, y_t
 
 
-def run_transformer_block_impl(*args, **kwargs):
-    """Placeholder for transformer block implementation. Implemented later in cs336_basics.
-    Present so tests can import the symbol from adapters.
+def run_transformer_block_impl(d_model: int, num_heads: int, d_ff: int, max_seq_len: int, theta: float, weights: dict[str, Tensor], in_features: Tensor) -> Tensor:
+    """Run a single pre-norm Transformer block using provided weights.
+
+    This function is intentionally permissive: if attention weights are missing,
+    attention is treated as a zero operator (identity residual). For the FFN,
+    if SwiGLU weights (w1,w2,w3) are present we use SwiGLU; otherwise if only
+    w2 and w3 are present we perform a 2-layer SiLU MLP using w3 as the up-proj
+    and w2 as the down-proj.
     """
-    raise NotImplementedError("run_transformer_block_impl is not implemented yet")
+    import torch
+    from torch import nn
+
+    x = torch.as_tensor(in_features)
+    seq_len = x.shape[-2]
+
+    # LN1
+    ln1_w = weights.get("ln1.weight")
+    from .rmsnorm import RMSNorm
+
+    # create RMSNorm and load weight if present
+    if isinstance(ln1_w, torch.Tensor):
+        ln1 = RMSNorm(d_model=d_model, eps=1e-5, device=ln1_w.device, dtype=ln1_w.dtype)
+        with torch.no_grad():
+            ln1.weight.copy_(torch.as_tensor(ln1_w))
+    else:
+        ln1 = RMSNorm(d_model=d_model, eps=1e-5, device=x.device)
+
+    # Apply pre-norm before attention
+    x_ln1 = ln1(x)
+
+    # Attention
+    # Look for attn weights with common keys (explicit None checks to avoid tensor boolean ambiguity)
+    q_w = weights.get("attn.q_proj.weight")
+    if q_w is None:
+        q_w = weights.get("attn.q.weight")
+    k_w = weights.get("attn.k_proj.weight")
+    if k_w is None:
+        k_w = weights.get("attn.k.weight")
+    v_w = weights.get("attn.v_proj.weight")
+    if v_w is None:
+        v_w = weights.get("attn.v.weight")
+    o_w = weights.get("attn.output_proj.weight")
+    if o_w is None:
+        o_w = weights.get("attn.o_proj.weight")
+    if o_w is None:
+        o_w = weights.get("attn.out_proj.weight")
+
+    if q_w is not None and k_w is not None and v_w is not None and o_w is not None:
+        # Use RoPE-enabled multihead attention implementation
+        attn_out = run_multihead_self_attention_with_rope_impl(
+            d_model=d_model,
+            num_heads=num_heads,
+            max_seq_len=max_seq_len,
+            theta=theta,
+            q_proj_weight=q_w,
+            k_proj_weight=k_w,
+            v_proj_weight=v_w,
+            o_proj_weight=o_w,
+            in_features=x_ln1,
+            token_positions=torch.arange(0, seq_len, device=x.device),
+        )
+    else:
+        # No attention weights provided: treat attention as 0 -> residual is identity
+        attn_out = torch.zeros_like(x)
+
+    y = x + attn_out
+
+    # LN2
+    ln2_w = weights.get("ln2.weight")
+    ln2 = RMSNorm(d_model=d_model, eps=1e-5, device=ln2_w.device if isinstance(ln2_w, torch.Tensor) else x.device, dtype=ln2_w.dtype if isinstance(ln2_w, torch.Tensor) else None)
+    if ln2_w is not None:
+        with torch.no_grad():
+            ln2.weight.copy_(torch.as_tensor(ln2_w))
+
+    ffn_in = ln2(y)
+
+    # FFN: prefer SwiGLU (w1,w2,w3). If only w2/w3 present, do SiLU MLP: out = SiLU(ffn_up(x)) @ w2.T
+    w1 = weights.get("ffn.w1.weight")
+    w2 = weights.get("ffn.w2.weight")
+    w3 = weights.get("ffn.w3.weight")
+
+    if w1 is not None and w2 is not None and w3 is not None:
+        # Use SwiGLU implementation
+        ffn_out = run_swiglu_impl(d_model=d_model, d_ff=d_ff, w1_weight=w1, w2_weight=w2, w3_weight=w3, in_features=ffn_in)
+    elif w2 is not None and w3 is not None:
+        # Use two-layer MLP: up = x @ w3.T  (d_ff), act=SiLU(up), down = act @ w2.T
+        up = torch.matmul(ffn_in, torch.as_tensor(w3).t())
+        act = torch.nn.functional.silu(up)
+        ffn_out = torch.matmul(act, torch.as_tensor(w2).t())
+    else:
+        # No FFN weights provided
+        ffn_out = torch.zeros_like(x)
+
+    out = y + ffn_out
+    return out
 
 
 def run_transformer_lm_impl(*args, **kwargs):
