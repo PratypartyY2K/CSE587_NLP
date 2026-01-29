@@ -170,3 +170,7 @@ tests/
 
 *.pkl
 *.prof
+*.npy
+/tokenizer_tokenizers_sample/vocab.json
+/out/encode_log.txt
+/tokenizer_tokenizers_sample/merges.txt
