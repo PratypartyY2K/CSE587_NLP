@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
-import argparse
+# Ensure numeric libraries and tokenizers don't spawn threads/processes when run
 import os
+# Disable multithreading in common native libraries to avoid implicit multiprocessing
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+
+import argparse
 import time
 import pickle
 import numpy as np
 from cs336_basics.tokenizer import Tokenizer
+from multiprocessing import Pool, cpu_count
+from typing import Iterator, List
 
 
 def load_tokenizer(vocab_pkl, merges_pkl, special_tokens=None):
@@ -16,6 +26,7 @@ def load_tokenizer(vocab_pkl, merges_pkl, special_tokens=None):
 
 
 def count_tokens(tokenizer, filepath):
+    # Deprecated single-threaded path (kept for reference)
     cnt = 0
     with open(filepath, encoding='utf-8') as f:
         for _ in tokenizer.encode_iterable(f):
@@ -23,10 +34,60 @@ def count_tokens(tokenizer, filepath):
     return cnt
 
 
-def write_tokens_memmap(tokenizer, filepath, out_path, dtype=np.uint16):
-    print(f"Counting tokens for {filepath}...")
+def doc_stream(filepath: str, delimiter: str = '<|endoftext|>') -> Iterator[str]:
+    """Yield documents (including the delimiter) from a large file without loading it all."""
+    buf = ''
+    with open(filepath, encoding='utf-8') as f:
+        while True:
+            chunk = f.read(64 * 1024)
+            if not chunk:
+                break
+            buf += chunk
+            parts = buf.split(delimiter)
+            buf = parts.pop()
+            for part in parts:
+                yield part + delimiter
+    if buf:
+        yield buf
+
+
+# Worker-global tokenizer (initialized in each Pool worker)
+_WORKER_TOKENIZER = None
+
+
+def _init_worker(vocab_pkl: str, merges_pkl: str, special_tokens=None):
+    global _WORKER_TOKENIZER
+    with open(vocab_pkl, 'rb') as f:
+        vocab = pickle.load(f)
+    with open(merges_pkl, 'rb') as f:
+        merges = pickle.load(f)
+    _WORKER_TOKENIZER = Tokenizer(vocab, merges, special_tokens)
+
+
+def _worker_count(doc: str) -> int:
+    global _WORKER_TOKENIZER
+    ids = _WORKER_TOKENIZER.encode(doc)
+    return len(ids)
+
+
+def _worker_encode(doc: str) -> List[int]:
+    global _WORKER_TOKENIZER
+    return _WORKER_TOKENIZER.encode(doc)
+
+
+def write_tokens_memmap(tokenizer, filepath, out_path, dtype=np.uint16, workers: int = 1, vocab_pkl=None, merges_pkl=None, special_tokens=None):
+    print(f"Counting tokens for {filepath} (workers={workers})...")
     start = time.time()
-    total = count_tokens(tokenizer, filepath)
+    if workers and workers > 1 and vocab_pkl and merges_pkl:
+        # parallel counting by documents
+        with Pool(workers, initializer=_init_worker, initargs=(vocab_pkl, merges_pkl, special_tokens)) as pool:
+            counts = pool.imap(_worker_count, doc_stream(filepath))
+            total = 0
+            for c in counts:
+                total += c
+    else:
+        total = count_tokens(tokenizer, filepath)
+
     dur = time.time() - start
     print(f"Token count={total} (counting time={dur:.2f}s)")
 
@@ -39,15 +100,24 @@ def write_tokens_memmap(tokenizer, filepath, out_path, dtype=np.uint16):
     print(f"Creating memmap {out_path} with {total} entries of type {dtype}...")
     mm = np.memmap(out_path, dtype=dtype, mode='w+', shape=(total,))
 
-    print(f"Writing tokens to memmap...")
+    print(f"Writing tokens to memmap (workers={workers})...")
     i = 0
     start = time.time()
-    with open(filepath, encoding='utf-8') as f:
-        for tid in tokenizer.encode_iterable(f):
-            if tid >= 2**16:
-                raise ValueError(f"Token id {tid} >= 65536; uint16 overflow. Use uint32.")
-            mm[i] = np.uint16(tid)
-            i += 1
+    if workers and workers > 1 and vocab_pkl and merges_pkl:
+        with Pool(workers, initializer=_init_worker, initargs=(vocab_pkl, merges_pkl, special_tokens)) as pool:
+            for ids in pool.imap(_worker_encode, doc_stream(filepath)):
+                for tid in ids:
+                    if tid >= 2**16:
+                        raise ValueError(f"Token id {tid} >= 65536; uint16 overflow. Use uint32.")
+                    mm[i] = np.uint16(tid)
+                    i += 1
+    else:
+        with open(filepath, encoding='utf-8') as f:
+            for tid in tokenizer.encode_iterable(f):
+                if tid >= 2**16:
+                    raise ValueError(f"Token id {tid} >= 65536; uint16 overflow. Use uint32.")
+                mm[i] = np.uint16(tid)
+                i += 1
     mm.flush()
     dur = time.time() - start
     print(f"Wrote {i} tokens to {out_path} (time={dur:.2f}s, {i/dur if dur>0 else float('inf'):.0f} tokens/s)")
@@ -56,6 +126,9 @@ def write_tokens_memmap(tokenizer, filepath, out_path, dtype=np.uint16):
 
 def main():
     os.makedirs('out', exist_ok=True)
+
+    # use (CPU count - 1) workers by default, at least 1
+    workers = max(1, cpu_count() - 1)
 
     jobs = [
         # (vocab, merges, special_tokens, input, output)
@@ -76,7 +149,16 @@ def main():
 
         tokenizer = load_tokenizer(vocab_pkl, merges_pkl, special_tokens)
         try:
-            total = write_tokens_memmap(tokenizer, input_path, out_path, dtype=np.uint16)
+            total = write_tokens_memmap(
+                tokenizer,
+                input_path,
+                out_path,
+                dtype=np.uint16,
+                workers=workers,
+                vocab_pkl=vocab_pkl,
+                merges_pkl=merges_pkl,
+                special_tokens=special_tokens,
+            )
             print(f"Finished encoding {input_path}: total tokens={total}")
         except Exception as e:
             print(f"Error processing {input_path}: {e}")
