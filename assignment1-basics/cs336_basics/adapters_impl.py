@@ -44,6 +44,12 @@ from .impl.tokenizer import (
     Tokenizer as ImplTokenizer,
 )
 
+# Import IO helpers
+from .impl.io import (
+    run_save_checkpoint_impl,
+    run_load_checkpoint_impl,
+)
+
 
 def run_linear_impl(d_in: int, d_out: int, weights: Tensor, in_features: Tensor) -> Tensor:
     W = torch.as_tensor(weights)
@@ -145,37 +151,5 @@ def run_get_lr_cosine_schedule_impl(
 
 # run_gradient_clipping_impl provided by imported nn_utils
 
-
-def run_save_checkpoint_impl(
-    model: torch.nn.Module,
-    optimizer: torch.optim.Optimizer,
-    iteration: int,
-    out: str | os.PathLike | "BinaryIO" | "IO[bytes]",
-):
-    """Serialize model state_dict, optimizer state_dict, and iteration to `out`.
-
-    `out` may be a path or a file-like object. This function uses torch.save.
-    """
-    payload = {
-        "model_state_dict": model.state_dict(),
-        "optimizer_state_dict": optimizer.state_dict(),
-        "iteration": int(iteration),
-    }
-    # torch.save accepts path-like or file-like objects
-    torch.save(payload, out)
-
-
-def run_load_checkpoint_impl(
-    src: str | os.PathLike | "BinaryIO" | "IO[bytes]",
-    model: torch.nn.Module,
-    optimizer: torch.optim.Optimizer,
-) -> int:
-    """Load a checkpoint from `src` and restore state to model and optimizer.
-
-    Returns the iteration number stored in the checkpoint.
-    """
-    payload = torch.load(src, map_location="cpu")
-    # restore model and optimizer
-    model.load_state_dict(payload["model_state_dict"])
-    optimizer.load_state_dict(payload["optimizer_state_dict"])
-    return int(payload["iteration"])
+# The checkpointing implementations are provided by cs336_basics.impl.io (imported above).
+# Local duplicate definitions removed to keep this module as a facade.
