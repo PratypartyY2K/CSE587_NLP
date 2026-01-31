@@ -30,7 +30,6 @@ class RotaryPositionalEmbedding(nn.Module):
         # token_positions: (..., seq_len) or (seq_len,) or (1, seq_len)
         if x.shape[-1] != self.d_k:
             raise ValueError(f"last dim of x must be d_k={self.d_k}, got {x.shape[-1]}")
-        seq_len = x.shape[-2]
         # normalize token_positions to long tensor on same device as cos
         pos = torch.as_tensor(token_positions, dtype=torch.long, device=self.cos.device)
         # If pos has shape (seq_len,), expand to match leading dims of x excluding last dim if needed
@@ -39,7 +38,6 @@ class RotaryPositionalEmbedding(nn.Module):
         cos_sel = self.cos[pos]
         sin_sel = self.sin[pos]
         # Now split x into even and odd components
-        x_shape = x.shape
         x_even = x[..., 0::2]
         x_odd = x[..., 1::2]
         # Ensure cos_sel/sin_sel broadcast to x_even/x_odd

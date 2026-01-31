@@ -1,6 +1,7 @@
 """
 Transformer LM implementation: TransformerBlock and TransformerLM.
 """
+
 import math
 import torch
 from torch import nn
@@ -8,7 +9,6 @@ from torch import nn
 from .embedding import Embedding
 from .rope import RotaryPositionalEmbedding
 from .rmsnorm import RMSNorm
-from .swiglu import SwiGLU
 
 
 class TransformerBlock(nn.Module):
@@ -58,7 +58,6 @@ class TransformerBlock(nn.Module):
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor | None = None) -> torch.Tensor:
         # x: (..., seq_len, d_model)
-        orig_dtype = x.dtype
         device = x.device
         seq_len = x.shape[-2]
         if token_positions is None:
@@ -114,7 +113,16 @@ class TransformerBlock(nn.Module):
 
 
 class TransformerLM(nn.Module):
-    def __init__(self, vocab_size: int, context_length: int, d_model: int, num_layers: int, num_heads: int, d_ff: int, rope_theta: float):
+    def __init__(
+        self,
+        vocab_size: int,
+        context_length: int,
+        d_model: int,
+        num_layers: int,
+        num_heads: int,
+        d_ff: int,
+        rope_theta: float,
+    ):
         super().__init__()
         self.vocab_size = int(vocab_size)
         self.context_length = int(context_length)
@@ -125,10 +133,18 @@ class TransformerLM(nn.Module):
         self.rope_theta = float(rope_theta)
 
         self.token_embeddings = Embedding(num_embeddings=self.vocab_size, embedding_dim=self.d_model)
-        self.blocks = nn.ModuleList([
-            TransformerBlock(d_model=self.d_model, num_heads=self.num_heads, d_ff=self.d_ff, max_seq_len=self.context_length, theta=self.rope_theta)
-            for _ in range(self.num_layers)
-        ])
+        self.blocks = nn.ModuleList(
+            [
+                TransformerBlock(
+                    d_model=self.d_model,
+                    num_heads=self.num_heads,
+                    d_ff=self.d_ff,
+                    max_seq_len=self.context_length,
+                    theta=self.rope_theta,
+                )
+                for _ in range(self.num_layers)
+            ]
+        )
         self.ln_final = RMSNorm(d_model=self.d_model)
         # lm_head: weight matrix (vocab_size, d_model)
         self.lm_head = nn.Parameter(torch.empty((self.vocab_size, self.d_model)))

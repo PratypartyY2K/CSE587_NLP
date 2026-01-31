@@ -6,10 +6,10 @@ Exports:
 - run_rope_impl
 - run_multihead_self_attention_with_rope_impl
 """
+
 from __future__ import annotations
 
 import math
-from typing import Any
 
 import torch
 from torch import Tensor
@@ -33,13 +33,27 @@ def run_scaled_dot_product_attention_impl(Q: Tensor, K: Tensor, V: Tensor, mask:
     return out
 
 
-def run_multihead_self_attention_impl(d_model: int, num_heads: int, q_proj_weight: Tensor, k_proj_weight: Tensor, v_proj_weight: Tensor, o_proj_weight: Tensor, in_features: Tensor) -> Tensor:
+def run_multihead_self_attention_impl(
+    d_model: int,
+    num_heads: int,
+    q_proj_weight: Tensor,
+    k_proj_weight: Tensor,
+    v_proj_weight: Tensor,
+    o_proj_weight: Tensor,
+    in_features: Tensor,
+) -> Tensor:
     Wq = torch.as_tensor(q_proj_weight)
     Wk = torch.as_tensor(k_proj_weight)
     Wv = torch.as_tensor(v_proj_weight)
     Wo = torch.as_tensor(o_proj_weight)
     from ..multihead_attention import MultiHeadSelfAttention
-    mha = MultiHeadSelfAttention(d_model=d_model, num_heads=num_heads, device=Wq.device if isinstance(Wq, torch.Tensor) else None, dtype=Wq.dtype if isinstance(Wq, torch.Tensor) else None)
+
+    mha = MultiHeadSelfAttention(
+        d_model=d_model,
+        num_heads=num_heads,
+        device=Wq.device if isinstance(Wq, torch.Tensor) else None,
+        dtype=Wq.dtype if isinstance(Wq, torch.Tensor) else None,
+    )
     with torch.no_grad():
         mha.q_proj.copy_(Wq)
         mha.k_proj.copy_(Wk)
@@ -56,7 +70,18 @@ def run_rope_impl(d_k: int, theta: float, max_seq_len: int, in_query_or_key: Ten
     return rope(x, pos)
 
 
-def run_multihead_self_attention_with_rope_impl(d_model: int, num_heads: int, max_seq_len: int, theta: float, q_proj_weight: Tensor, k_proj_weight: Tensor, v_proj_weight: Tensor, o_proj_weight: Tensor, in_features: Tensor, token_positions: Tensor | None = None) -> Tensor:
+def run_multihead_self_attention_with_rope_impl(
+    d_model: int,
+    num_heads: int,
+    max_seq_len: int,
+    theta: float,
+    q_proj_weight: Tensor,
+    k_proj_weight: Tensor,
+    v_proj_weight: Tensor,
+    o_proj_weight: Tensor,
+    in_features: Tensor,
+    token_positions: Tensor | None = None,
+) -> Tensor:
     Wq = torch.as_tensor(q_proj_weight)
     Wk = torch.as_tensor(k_proj_weight)
     Wv = torch.as_tensor(v_proj_weight)

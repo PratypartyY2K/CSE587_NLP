@@ -3,6 +3,7 @@
 This file contains the canonical implementation; any previous `_impl` module re-exports
 from here to avoid duplication.
 """
+
 from __future__ import annotations
 
 from typing import Dict
@@ -12,12 +13,18 @@ from torch import Tensor
 
 from ..rmsnorm import RMSNorm
 from ..swiglu import SwiGLU
-from ..rope import RotaryPositionalEmbedding
-from ..multihead_attention import MultiHeadSelfAttention
 from .attention import run_multihead_self_attention_with_rope_impl
 
 
-def run_transformer_block_impl(d_model: int, num_heads: int, d_ff: int, max_seq_len: int, theta: float, weights: Dict[str, Tensor], in_features: Tensor) -> Tensor:
+def run_transformer_block_impl(
+    d_model: int,
+    num_heads: int,
+    d_ff: int,
+    max_seq_len: int,
+    theta: float,
+    weights: Dict[str, Tensor],
+    in_features: Tensor,
+) -> Tensor:
     """Run a single pre-norm Transformer block using provided weights.
 
     This mirrors the original implementation in adapters_impl but keeps local imports
@@ -126,7 +133,15 @@ def run_transformer_lm_impl(
     """Construct a TransformerLM, load provided weights into its parameters, and run a forward pass."""
     from ..transformer import TransformerLM
 
-    model = TransformerLM(vocab_size=vocab_size, context_length=context_length, d_model=d_model, num_layers=num_layers, num_heads=num_heads, d_ff=d_ff, rope_theta=rope_theta)
+    model = TransformerLM(
+        vocab_size=vocab_size,
+        context_length=context_length,
+        d_model=d_model,
+        num_layers=num_layers,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        rope_theta=rope_theta,
+    )
 
     # Load token embeddings
     if "token_embeddings.weight" in weights:
@@ -144,7 +159,7 @@ def run_transformer_lm_impl(
     # Load layer weights
     for i in range(num_layers):
         prefix = f"layers.{i}."
-        layer_weights = {k[len(prefix):]: v for k, v in weights.items() if k.startswith(prefix)}
+        layer_weights = {k[len(prefix) :]: v for k, v in weights.items() if k.startswith(prefix)}
         if not layer_weights:
             continue
         block = model.blocks[i]

@@ -3,6 +3,7 @@
 This file contains the canonical tokenizer implementation; any previous
 `tokenizer_impl.py` was an internal duplicate and has been removed.
 """
+
 from __future__ import annotations
 
 import regex as re
@@ -13,7 +14,9 @@ import json
 GPT2_SPLIT_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 
-def train_bpe(input_path: str, vocab_size: int, special_tokens: List[str]) -> Tuple[Dict[int, bytes], List[Tuple[bytes, bytes]]]:
+def train_bpe(
+    input_path: str, vocab_size: int, special_tokens: List[str]
+) -> Tuple[Dict[int, bytes], List[Tuple[bytes, bytes]]]:
     min_allowed = 256 + len(special_tokens)
     if vocab_size < min_allowed:
         raise ValueError(f"`vocab_size` must be at least {min_allowed} (256 + number of special tokens).")
@@ -93,7 +96,9 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: List[str]) -> Tu
 
 
 class Tokenizer:
-    def __init__(self, vocab: Dict[int, bytes], merges: List[Tuple[bytes, bytes]], special_tokens: List[str] | None = None):
+    def __init__(
+        self, vocab: Dict[int, bytes], merges: List[Tuple[bytes, bytes]], special_tokens: List[str] | None = None
+    ):
         self.vocab = dict(vocab)
         self.merges = list(merges)
         self.special_tokens = list(special_tokens) if special_tokens else []
@@ -225,7 +230,6 @@ class Tokenizer:
                         break
 
                 for m in self.split_regex.finditer(part):
-                    m_start = part_start + m.start()
                     m_end = part_start + m.end()
                     if m_end <= cutoff:
                         token_bytes = m.group(0).encode("utf-8")
