@@ -330,3 +330,36 @@ def run_transformer_lm_impl(
 
     x = torch.as_tensor(in_indices, dtype=torch.long)
     return model(x)
+
+
+def run_cross_entropy_impl(inputs: Tensor, targets: Tensor) -> Tensor:
+    """Numerically-stable cross-entropy loss implementation.
+
+    Args:
+        inputs: Tensor of shape (..., vocab_size) containing unnormalized logits.
+        targets: Long tensor of shape (...) containing class indices (0..vocab_size-1).
+
+    Returns:
+        Scalar Tensor containing the mean cross-entropy loss across the leading batch-like dimensions.
+    """
+    x = torch.as_tensor(inputs)
+    t = torch.as_tensor(targets, dtype=torch.long)
+
+    # Flatten leading batch-like dimensions so we can compute in a vectorized way.
+    vocab_size = x.shape[-1]
+    x_flat = x.view(-1, vocab_size)
+    t_flat = t.view(-1)
+
+    # Use log-sum-exp for numerical stability: lse = log(sum(exp(x)))
+    # We can subtract the max implicitly by torch.logsumexp, which is stable.
+    lse = torch.logsumexp(x_flat, dim=-1)  # shape (N,)
+
+    # Gather the unnormalized logit for the correct class
+    # x_at_target = x_flat[range(N), t_flat]
+    x_at_target = x_flat.gather(1, t_flat.unsqueeze(1)).squeeze(1)
+
+    # Negative log likelihood per example: lse - x_at_target
+    loss_per_example = lse - x_at_target
+
+    # Return mean over examples
+    return loss_per_example.mean()
