@@ -1,7 +1,6 @@
-"""Tokenizer training and Tokenizer class (canonical implementation).
+"""Byte-level BPE training and tokenizer implementation.
 
-This file contains the canonical tokenizer implementation; any previous
-`tokenizer_impl.py` was an internal duplicate and has been removed.
+Exports `train_bpe` (train a byte-level BPE tokenizer) and `Tokenizer`.
 """
 
 from __future__ import annotations

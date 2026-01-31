@@ -1,15 +1,7 @@
-"""Small utility functions and light NN-layer adapters.
+"""Utilities and small NN-layer adapters.
 
-Exports:
-- run_softmax_impl
-- run_silu_impl
-- run_get_batch_impl
-- run_cross_entropy_impl
-- run_gradient_clipping_impl
-- run_linear_impl
-- run_embedding_impl
-- run_swiglu_impl
-- run_rmsnorm_impl
+Contains focused implementations used by tests: softmax, SiLU, batch sampling,
+cross-entropy, gradient clipping, and small adapter runners (linear, embedding, SwiGLU, RMSNorm).
 """
 
 from __future__ import annotations

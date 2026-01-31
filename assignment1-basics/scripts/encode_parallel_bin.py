@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
-"""
-Parallel tokenizer encoder (document-level parallelism).
+"""Parallel tokenizer encoder (document-level parallelism).
 
-Strategy:
-- Stream the input file by document (split on <|endoftext|>), yield documents to a Pool.
-- Each worker initializes its own Tokenizer (from given vocab/merges pkls) in an initializer.
-- Worker encodes a document and returns its token IDs as a uint16 bytes buffer.
-- Main process appends each returned bytes buffer to a single temporary binary file (uint16 raw little-endian).
-- After all docs processed, compute total tokens = filesize // 2.
-#    # Create a .npy memmap using numpy.lib.format.open_memmap and copy the binary contents into it in chunks.
-
-This is single-pass tokenization (no re-tokenization) and uses parallel CPU encoding,
-#    while keeping memory usage low.
+Streams the input file by document (split on <|endoftext|>), encodes documents in a
+process Pool, writes uint16 token buffers into a temporary binary file, then converts
+that into a .npy memmap. Uses document-level parallelism to keep memory usage low.
 """
 
 import os
@@ -26,7 +18,6 @@ import numpy as np
 from cs336_basics.impl import Tokenizer
 
 
-# Worker-global tokenizer
 _WORKER_TOKENIZER = None
 
 
@@ -65,7 +56,6 @@ def doc_stream(filepath: str, delimiter: str = "<|endoftext|>") -> Iterator[str]
 def encode_to_binary(vocab_pkl: str, merges_pkl: str, special_tokens, input_path: str, out_bin_path: str, workers: int):
     os.makedirs(os.path.dirname(out_bin_path) or ".", exist_ok=True)
     tmp_bin = out_bin_path
-    # remove if exists
     if os.path.exists(tmp_bin):
         os.remove(tmp_bin)
 
@@ -74,9 +64,7 @@ def encode_to_binary(vocab_pkl: str, merges_pkl: str, special_tokens, input_path
     total_bytes = 0
     total_tokens = 0
     with Pool(workers, initializer=_init_worker, initargs=(vocab_pkl, merges_pkl, special_tokens)) as pool:
-        # use imap to preserve streaming and low memory
         for buf in pool.imap(_worker_encode, doc_stream(input_path), chunksize=10):
-            # buf is bytes of uint16 little-endian
             if buf:
                 with open(tmp_bin, "ab") as out:
                     out.write(buf)
@@ -99,14 +87,11 @@ def encode_to_binary(vocab_pkl: str, merges_pkl: str, special_tokens, input_path
 
 
 def bin_to_npy(bin_path: str, npy_path: str, dtype=np.uint16, chunksize=10_000_000):
-    # compute total elements
     size = os.path.getsize(bin_path)
     if size % np.dtype(dtype).itemsize != 0:
         raise ValueError("Binary file size not multiple of dtype size")
     nelems = size // np.dtype(dtype).itemsize
-    # open memmap in .npy format
     mmap = np.lib.format.open_memmap(npy_path, mode="w+", dtype=dtype, shape=(nelems,))
-    # copy in chunks
     with open(bin_path, "rb") as f:
         offset = 0
         while True:

@@ -1,10 +1,6 @@
-"""Attention-related implementations extracted from adapters_impl for modularity.
+"""Attention helpers: scaled dot-product, multi-head, and RoPE wrappers.
 
-Exports:
-- run_scaled_dot_product_attention_impl
-- run_multihead_self_attention_impl
-- run_rope_impl
-- run_multihead_self_attention_with_rope_impl
+Implements core attention routines used by transformer blocks and tests.
 """
 
 from __future__ import annotations

@@ -1,7 +1,6 @@
-"""Transformer implementations: run_transformer_block_impl and run_transformer_lm_impl.
+"""Transformer helpers for a pre-norm block and a small Transformer LM runner.
 
-This file contains the canonical implementation; any previous `_impl` module re-exports
-from here to avoid duplication.
+Exports `run_transformer_block_impl` and `run_transformer_lm_impl` used by tests.
 """
 
 from __future__ import annotations

@@ -1,4 +1,7 @@
-"""Optimizer helpers: AdamW and LR schedule implementations."""
+"""Optimizer helpers: AdamW and LR schedule implementations.
+
+Provides a minimal AdamW optimizer and a cosine LR schedule used by tests.
+"""
 
 from __future__ import annotations
 
