@@ -363,3 +363,49 @@ def run_cross_entropy_impl(inputs: Tensor, targets: Tensor) -> Tensor:
 
     # Return mean over examples
     return loss_per_example.mean()
+
+
+def run_get_lr_cosine_schedule_impl(
+    it: int,
+    max_learning_rate: float,
+    min_learning_rate: float,
+    warmup_iters: int,
+    cosine_cycle_iters: int,
+):
+    """Return learning rate at iteration `it` using linear warmup followed by cosine annealing.
+
+    Warmup: 0 -> max_learning_rate over `warmup_iters` (inclusive: at t=warmup_iters lr=max_learning_rate).
+    Cosine: after warmup, anneal from max_learning_rate to min_learning_rate over
+    `num_cosine_steps = cosine_cycle_iters - warmup_iters` iterations (inclusive: at t=cosine_cycle_iters lr=min_learning_rate).
+    After `cosine_cycle_iters`, return min_learning_rate.
+    """
+    t = int(it)
+    alpha_max = float(max_learning_rate)
+    alpha_min = float(min_learning_rate)
+    Tw = int(warmup_iters)
+    Tc = int(cosine_cycle_iters)
+
+    if Tw <= 0:
+        # No warmup: start at max and immediately begin cosine from t=0
+        if Tc <= 0 or t >= Tc:
+            return alpha_min
+        # treat whole interval as cosine
+        num_cosine_steps = max(1, Tc)
+        progress = max(0, t)
+        cos_val = 0.5 * (1.0 + math.cos(math.pi * progress / num_cosine_steps))
+        return alpha_min + (alpha_max - alpha_min) * cos_val
+
+    # Warmup phase (including t == Tw)
+    if t <= Tw:
+        return alpha_max * (t / Tw)
+
+    # Cosine annealing phase
+    if t <= Tc:
+        num_cosine_steps = max(1, Tc - Tw)
+        progress = t - Tw
+        cos_val = 0.5 * (1.0 + math.cos(math.pi * progress / num_cosine_steps))
+        return alpha_min + (alpha_max - alpha_min) * cos_val
+
+    # After annealing: hold at minimum
+    return alpha_min
+
