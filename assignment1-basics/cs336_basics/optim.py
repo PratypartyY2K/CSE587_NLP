@@ -11,6 +11,13 @@ import math
 import torch
 from torch import Tensor
 from torch.optim.optimizer import Optimizer, required
+from cs336_basics.impl.optimizer import AdamW as _AdamW, run_get_lr_cosine_schedule_impl as _run_get_lr_cosine_schedule_impl
+
+__all__ = ["AdamW", "run_get_lr_cosine_schedule_impl"]
+
+# Re-export for compatibility
+AdamW = _AdamW
+run_get_lr_cosine_schedule_impl = _run_get_lr_cosine_schedule_impl
 
 
 class AdamW(Optimizer):
