@@ -1,18 +1,12 @@
 #!/usr/bin/env python3
 # Ensure numeric libraries and tokenizers don't spawn threads/processes when run
 import os
-# Disable multithreading in common native libraries to avoid implicit multiprocessing
-os.environ.setdefault("OMP_NUM_THREADS", "1")
-os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
-os.environ.setdefault("MKL_NUM_THREADS", "1")
-os.environ.setdefault("VECLIB_MAXIMUM_THREADS", "1")
-os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 
 import argparse
 import time
 import pickle
 import numpy as np
-from cs336_basics.tokenizer import Tokenizer
+from cs336_basics.impl import Tokenizer
 from multiprocessing import Pool, cpu_count
 from typing import Iterator, List
 

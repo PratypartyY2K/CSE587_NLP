@@ -1,5 +1,5 @@
 import time, pickle
-from cs336_basics.tokenizer import train_bpe
+from cs336_basics.impl import train_bpe
 
 input_path = 'data/owt_train_sample_1mb.txt'
 vocab_size = 32000

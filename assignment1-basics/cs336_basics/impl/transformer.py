@@ -1,8 +1,7 @@
-"""Transformer-related adapters moved into a module for modularity.
+"""Transformer implementations: run_transformer_block_impl and run_transformer_lm_impl.
 
-Exports:
-- run_transformer_block_impl
-- run_transformer_lm_impl
+This file contains the canonical implementation; any previous `_impl` module re-exports
+from here to avoid duplication.
 """
 from __future__ import annotations
 

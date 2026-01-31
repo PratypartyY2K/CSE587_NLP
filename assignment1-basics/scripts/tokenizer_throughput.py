@@ -1,6 +1,6 @@
 import time
 import pickle
-from cs336_basics.tokenizer import Tokenizer
+from cs336_basics.impl import Tokenizer
 
 with open('owt_small_tokenizer_vocab.pkl','rb') as f:
     vocab = pickle.load(f)

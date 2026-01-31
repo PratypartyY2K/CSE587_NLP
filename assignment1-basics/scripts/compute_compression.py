@@ -1,6 +1,6 @@
 import pickle
 import random
-from cs336_basics.tokenizer import Tokenizer
+from cs336_basics.impl import Tokenizer
 
 random.seed(0)
 

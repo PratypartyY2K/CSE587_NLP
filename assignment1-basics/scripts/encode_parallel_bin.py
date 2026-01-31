@@ -21,7 +21,7 @@ from multiprocessing import Pool, cpu_count
 from typing import Iterator
 
 import numpy as np
-from cs336_basics.tokenizer import Tokenizer
+from cs336_basics.impl import Tokenizer
 
 
 # Worker-global tokenizer

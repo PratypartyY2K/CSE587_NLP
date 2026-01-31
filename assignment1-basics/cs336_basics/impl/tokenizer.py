@@ -1,8 +1,7 @@
-"""Tokenizer training and Tokenizer class moved into impl for modularity.
+"""Tokenizer training and Tokenizer class (canonical implementation).
 
-Exports:
-- train_bpe
-- Tokenizer
+This file contains the canonical tokenizer implementation; any previous
+`tokenizer_impl.py` was an internal duplicate and has been removed.
 """
 from __future__ import annotations
 

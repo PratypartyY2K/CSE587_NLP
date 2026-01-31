@@ -1,6 +1,6 @@
 import time
 import pickle
-from cs336_basics.tokenizer import train_bpe
+from cs336_basics.impl import train_bpe
 
 input_path = 'data/tinystories_sample_small.txt'
 vocab_size = 10000
