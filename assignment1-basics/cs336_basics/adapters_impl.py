@@ -409,3 +409,37 @@ def run_get_lr_cosine_schedule_impl(
     # After annealing: hold at minimum
     return alpha_min
 
+
+def run_gradient_clipping_impl(parameters, max_l2_norm: float, eps: float = 1e-6) -> None:
+    """Clip gradients of the provided parameters in-place to have total L2 norm at most max_l2_norm.
+
+    This mirrors torch.nn.utils.clip_grad_norm_ behavior: compute the global norm across all
+    parameter.grad tensors (square-sum of their 2-norms), and if it exceeds max_l2_norm,
+    scale all gradients by max_l2_norm / (total_norm + eps).
+    """
+    import math
+    # Collect grads
+    total_norm_sq = 0.0
+    params = []
+    for p in parameters:
+        if p is None:
+            continue
+        if not hasattr(p, 'grad'):
+            continue
+        grad = p.grad
+        if grad is None:
+            continue
+        grad_data = grad.detach()
+        param_norm = float(torch.sum(grad_data.float() * grad_data.float()).item())
+        total_norm_sq += param_norm
+        params.append(grad)
+
+    total_norm = math.sqrt(total_norm_sq)
+    if total_norm == 0:
+        return
+    clip_coef = float(max_l2_norm) / (total_norm + eps)
+    if clip_coef >= 1.0:
+        return
+    # scale gradients in-place
+    for g in params:
+        g.mul_(clip_coef)
