@@ -15,6 +15,15 @@ from .swiglu import SwiGLU
 from .rmsnorm import RMSNorm
 from .rope import RotaryPositionalEmbedding
 
+# Import modularized nn utils
+from .impl.nn_utils import (
+    run_softmax_impl,
+    run_silu_impl,
+    run_get_batch_impl,
+    run_cross_entropy_impl,
+    run_gradient_clipping_impl,
+)
+
 
 def run_linear_impl(d_in: int, d_out: int, weights: Tensor, in_features: Tensor) -> Tensor:
     W = torch.as_tensor(weights)
@@ -129,39 +138,12 @@ def run_rmsnorm_impl(d_model: int, eps: float, weights: Tensor, in_features: Ten
     return rms(torch.as_tensor(in_features))
 
 
-def run_softmax_impl(in_features: Tensor, dim: int) -> Tensor:
-    x = torch.as_tensor(in_features)
-    max_along_dim = torch.amax(x, dim=dim, keepdim=True)
-    x_stable = x - max_along_dim
-    exp_x = torch.exp(x_stable)
-    sum_exp = torch.sum(exp_x, dim=dim, keepdim=True)
-    return exp_x / sum_exp
-
-
-def run_silu_impl(in_features: Tensor) -> Tensor:
-    x = torch.as_tensor(in_features)
-    return torch.nn.functional.silu(x)
-
-
-def run_get_batch_impl(dataset, batch_size: int, context_length: int, device: str):
-    """Sample language-modeling batches from a 1D numpy array dataset.
-    Returns x,y torch.LongTensor on the specified device with shapes (batch_size, context_length).
-    """
-    import numpy as np
-    import torch
-
-    arr = np.asarray(dataset)
-    n = arr.shape[0]
-    if n <= context_length:
-        raise ValueError("dataset too small for context_length")
-    max_start = n - context_length - 1 + 1  # inclusive end for start selection so that x+1 valid
-    # sample starts uniformly
-    starts = np.random.randint(0, n - context_length, size=(batch_size,))
-    x_batch = np.stack([arr[s : s + context_length] for s in starts], axis=0)
-    y_batch = np.stack([arr[s + 1 : s + 1 + context_length] for s in starts], axis=0)
-    x_t = torch.as_tensor(x_batch, dtype=torch.long, device=device)
-    y_t = torch.as_tensor(y_batch, dtype=torch.long, device=device)
-    return x_t, y_t
+# The following functions are provided by the modularized nn_utils module (imported above):
+# - run_softmax_impl
+# - run_silu_impl
+# - run_get_batch_impl
+# - run_cross_entropy_impl
+# - run_gradient_clipping_impl
 
 
 def run_transformer_block_impl(d_model: int, num_heads: int, d_ff: int, max_seq_len: int, theta: float, weights: dict[str, Tensor], in_features: Tensor) -> Tensor:
@@ -332,37 +314,7 @@ def run_transformer_lm_impl(
     return model(x)
 
 
-def run_cross_entropy_impl(inputs: Tensor, targets: Tensor) -> Tensor:
-    """Numerically-stable cross-entropy loss implementation.
-
-    Args:
-        inputs: Tensor of shape (..., vocab_size) containing unnormalized logits.
-        targets: Long tensor of shape (...) containing class indices (0..vocab_size-1).
-
-    Returns:
-        Scalar Tensor containing the mean cross-entropy loss across the leading batch-like dimensions.
-    """
-    x = torch.as_tensor(inputs)
-    t = torch.as_tensor(targets, dtype=torch.long)
-
-    # Flatten leading batch-like dimensions so we can compute in a vectorized way.
-    vocab_size = x.shape[-1]
-    x_flat = x.view(-1, vocab_size)
-    t_flat = t.view(-1)
-
-    # Use log-sum-exp for numerical stability: lse = log(sum(exp(x)))
-    # We can subtract the max implicitly by torch.logsumexp, which is stable.
-    lse = torch.logsumexp(x_flat, dim=-1)  # shape (N,)
-
-    # Gather the unnormalized logit for the correct class
-    # x_at_target = x_flat[range(N), t_flat]
-    x_at_target = x_flat.gather(1, t_flat.unsqueeze(1)).squeeze(1)
-
-    # Negative log likelihood per example: lse - x_at_target
-    loss_per_example = lse - x_at_target
-
-    # Return mean over examples
-    return loss_per_example.mean()
+# run_cross_entropy_impl and run_gradient_clipping_impl are provided by the imported nn_utils module
 
 
 def run_get_lr_cosine_schedule_impl(
@@ -410,36 +362,4 @@ def run_get_lr_cosine_schedule_impl(
     return alpha_min
 
 
-def run_gradient_clipping_impl(parameters, max_l2_norm: float, eps: float = 1e-6) -> None:
-    """Clip gradients of the provided parameters in-place to have total L2 norm at most max_l2_norm.
-
-    This mirrors torch.nn.utils.clip_grad_norm_ behavior: compute the global norm across all
-    parameter.grad tensors (square-sum of their 2-norms), and if it exceeds max_l2_norm,
-    scale all gradients by max_l2_norm / (total_norm + eps).
-    """
-    import math
-    # Collect grads
-    total_norm_sq = 0.0
-    params = []
-    for p in parameters:
-        if p is None:
-            continue
-        if not hasattr(p, 'grad'):
-            continue
-        grad = p.grad
-        if grad is None:
-            continue
-        grad_data = grad.detach()
-        param_norm = float(torch.sum(grad_data.float() * grad_data.float()).item())
-        total_norm_sq += param_norm
-        params.append(grad)
-
-    total_norm = math.sqrt(total_norm_sq)
-    if total_norm == 0:
-        return
-    clip_coef = float(max_l2_norm) / (total_norm + eps)
-    if clip_coef >= 1.0:
-        return
-    # scale gradients in-place
-    for g in params:
-        g.mul_(clip_coef)
+# run_gradient_clipping_impl provided by imported nn_utils
