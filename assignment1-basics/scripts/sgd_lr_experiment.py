@@ -7,7 +7,6 @@ def run_sgd(lr, iters=10):
     w = 0.0  # init parameter
     losses = []
     for i in range(iters):
-        # loss = (w-3)^2
         loss = (w - 3.0) ** 2
         grad = 2 * (w - 3.0)
         w = w - lr * grad

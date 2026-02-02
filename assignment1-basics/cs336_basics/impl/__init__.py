@@ -49,7 +49,6 @@ __all__ = [
     "run_save_checkpoint_impl",
     "run_load_checkpoint_impl",
     "run_generate_impl",
-    # nn layer helpers
     "run_linear_impl",
     "run_embedding_impl",
     "run_swiglu_impl",

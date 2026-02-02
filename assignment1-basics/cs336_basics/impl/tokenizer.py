@@ -102,23 +102,18 @@ class Tokenizer:
         self.merges = list(merges)
         self.special_tokens = list(special_tokens) if special_tokens else []
 
-        # inverse mapping bytes->id
         self.vocab_inv: dict[bytes, int] = {v: k for k, v in self.vocab.items()}
 
-        # map special token string -> id if present in vocab
         self.special_token_to_id: dict[str, int] = {}
         for st in self.special_tokens:
             b = st.encode("utf-8")
             if b in self.vocab_inv:
                 self.special_token_to_id[st] = self.vocab_inv[b]
 
-        # merge ranks: earlier merges have lower rank
         self.merge_ranks: dict[tuple[bytes, bytes], int] = {pair: i for i, pair in enumerate(self.merges)}
 
-        # compile split pattern
         self.split_regex = re.compile(GPT2_SPLIT_PATTERN)
 
-        # prepare special token split pattern (longest-first)
         if self.special_tokens:
             sorted_tokens = sorted(self.special_tokens, key=len, reverse=True)
             self._special_pattern = re.compile("(" + "|".join(re.escape(t) for t in sorted_tokens) + ")")

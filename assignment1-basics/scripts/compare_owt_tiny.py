@@ -47,7 +47,6 @@ print(f"bytes_total={bytes_total}")
 print(f"tokens_by_owt={tokens_by_owt} bytes/token={ratio_owt:.4f}")
 print(f"tokens_by_tiny={tokens_by_tiny} bytes/token={ratio_tiny:.4f}")
 
-# print a short example of tokenization counts for the first sample
 s0 = sample[0] + "<|endoftext|>"
 print("\nExample first doc bytes=", len(s0.encode("utf-8")))
 print("OWT tokens=", len(owt.encode(s0)))

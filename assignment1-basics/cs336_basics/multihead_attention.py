@@ -16,7 +16,6 @@ class MultiHeadSelfAttention(nn.Module):
             factory_kwargs["device"] = device
         if dtype is not None:
             factory_kwargs["dtype"] = dtype
-        # projection weights stored as (out_features, in_features) to match tests
         self.q_proj = nn.Parameter(torch.empty((d_model, d_model), **factory_kwargs))
         self.k_proj = nn.Parameter(torch.empty((d_model, d_model), **factory_kwargs))
         self.v_proj = nn.Parameter(torch.empty((d_model, d_model), **factory_kwargs))

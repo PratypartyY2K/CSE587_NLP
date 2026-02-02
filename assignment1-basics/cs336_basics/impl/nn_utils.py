@@ -43,7 +43,6 @@ def run_get_batch_impl(dataset, batch_size: int, context_length: int, device: st
     n = arr.shape[0]
     if n <= context_length:
         raise ValueError("dataset too small for context_length")
-    # sample starts uniformly
     starts = np.random.randint(0, n - context_length, size=(batch_size,))
     x_batch = np.stack([arr[s : s + context_length] for s in starts], axis=0)
     y_batch = np.stack([arr[s + 1 : s + 1 + context_length] for s in starts], axis=0)

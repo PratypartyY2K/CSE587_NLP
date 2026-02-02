@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Ensure numeric libraries and tokenizers don't spawn threads/processes when run
 import os
 
 import time
@@ -19,7 +18,6 @@ def load_tokenizer(vocab_pkl, merges_pkl, special_tokens=None):
 
 
 def count_tokens(tokenizer, filepath):
-    # Deprecated single-threaded path (kept for reference)
     cnt = 0
     with open(filepath, encoding="utf-8") as f:
         for _ in tokenizer.encode_iterable(f):
@@ -44,7 +42,6 @@ def doc_stream(filepath: str, delimiter: str = "<|endoftext|>") -> Iterator[str]
         yield buf
 
 
-# Worker-global tokenizer (initialized in each Pool worker)
 _WORKER_TOKENIZER = None
 
 
@@ -81,7 +78,6 @@ def write_tokens_memmap(
     print(f"Counting tokens for {filepath} (workers={workers})...")
     start = time.time()
     if workers and workers > 1 and vocab_pkl and merges_pkl:
-        # parallel counting by documents
         with Pool(workers, initializer=_init_worker, initargs=(vocab_pkl, merges_pkl, special_tokens)) as pool:
             counts = pool.imap(_worker_count, doc_stream(filepath))
             total = 0
@@ -98,7 +94,6 @@ def write_tokens_memmap(
         np.save(out_path, np.array([], dtype=dtype))
         return total
 
-    # prepare memmap
     print(f"Creating memmap {out_path} with {total} entries of type {dtype}...")
     mm = np.memmap(out_path, dtype=dtype, mode="w+", shape=(total,))
 
@@ -129,11 +124,9 @@ def write_tokens_memmap(
 def main():
     os.makedirs("out", exist_ok=True)
 
-    # use (CPU count - 1) workers by default, at least 1
     workers = max(1, cpu_count() - 1)
 
     jobs = [
-        # (vocab, merges, special_tokens, input, output)
         (
             "tokenizer_vocab.pkl",
             "tokenizer_merges.pkl",

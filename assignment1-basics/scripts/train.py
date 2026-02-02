@@ -36,11 +36,9 @@ def load_memmap(path: str, dtype: str | None = None) -> np.ndarray:
     """Load a numpy array in memory-mapped read-only mode if possible."""
     if not os.path.exists(path):
         raise FileNotFoundError(path)
-    # Use mmap_mode='r' for .npy files
     try:
         arr = np.load(path, mmap_mode="r")
     except Exception:
-        # Fall back to normal load (works for plain files)
         arr = np.load(path)
     if dtype is not None and str(arr.dtype) != dtype:
         arr = arr.astype(dtype)
@@ -74,7 +72,6 @@ def main():
     parser.add_argument("--valid-data", required=False, help="Path to valid ids .npy memmap")
     parser.add_argument("--checkpoint", required=True, help="Checkpoint output path")
 
-    # Model hyperparameters
     parser.add_argument("--vocab-size", type=int, required=True)
     parser.add_argument("--context-length", type=int, required=True)
     parser.add_argument("--d-model", type=int, default=512)
@@ -82,7 +79,6 @@ def main():
     parser.add_argument("--num-heads", type=int, default=8)
     parser.add_argument("--d-ff", type=int, default=0, help="If 0, uses 4*d_model")
 
-    # Optimization
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--total-steps", type=int, default=10000)
@@ -121,7 +117,6 @@ def main():
 
     optimizer = AdamW(model.parameters(), lr=args.lr, betas=(0.9, 0.95), eps=1e-8, weight_decay=args.weight_decay)
 
-    # Attempt to resume from checkpoint if exists
     start_step = int(args.start_step)
     if os.path.exists(args.checkpoint):
         try:
@@ -133,7 +128,6 @@ def main():
 
     print(f"Starting training on device={device} from step {start_step} to {args.total_steps}")
 
-    # Training loop
     t0 = time.time()
     report_time = t0
     for it in range(start_step, args.total_steps):
@@ -149,7 +143,6 @@ def main():
             run_gradient_clipping_impl(model.parameters(), args.grad_clip)
         optimizer.step()
 
-        # simple LR schedule hook (optional): here we don't change lr per step automatically
         if (it + 1) % args.log_interval == 0:
             now = time.time()
             elapsed = now - report_time
@@ -162,7 +155,6 @@ def main():
             print(f"[eval] step={it + 1} val_loss={val_loss:.6f}")
 
         if (it + 1) % args.save_interval == 0:
-            # Save checkpoint
             try:
                 run_save_checkpoint_impl(model, optimizer, it + 1, args.checkpoint)
                 print(f"Saved checkpoint to {args.checkpoint} at step {it + 1}")

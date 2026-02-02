@@ -22,18 +22,14 @@ def _top_p_filtering(probs: torch.Tensor, top_p: float) -> torch.Tensor:
         return probs
     sorted_probs, sorted_indices = torch.sort(probs, descending=True)
     cumulative = torch.cumsum(sorted_probs, dim=0)
-    # keep tokens with cumulative <= top_p; we must keep at least the top token
     cutoff_mask = cumulative <= top_p
-    # ensure at least one True
     if not cutoff_mask.any():
         cutoff_mask[0] = True
-    # mask out tokens beyond nucleus
     filtered = torch.zeros_like(probs)
     keep_indices = sorted_indices[cutoff_mask]
     filtered[keep_indices] = probs[keep_indices]
     s = filtered.sum()
     if s <= 0:
-        # if numerical issues, fall back to original probs
         return probs
     return filtered / s
 
@@ -78,9 +74,7 @@ def run_generate_impl(
             else:
                 logits_scaled = last_logits
             probs = F.softmax(logits_scaled, dim=-1)
-            # apply top-p nucleus filtering
             probs = _top_p_filtering(probs, float(top_p))
-            # sample
             next_id = torch.multinomial(probs, num_samples=1).item()
             cur.append(int(next_id))
             if eos_token_id is not None and next_id == eos_token_id:

@@ -4,7 +4,6 @@ from cs336_basics.impl import Tokenizer
 
 random.seed(0)
 
-# load tokenizers
 with open("tokenizer_vocab.pkl", "rb") as f:
     tiny_vocab = pickle.load(f)
 with open("tokenizer_merges.pkl", "rb") as f:
@@ -20,7 +19,6 @@ with open("owt_small_tokenizer_merges.pkl", "rb") as f:
 owt_tokenizer = Tokenizer(owt_vocab, owt_merges, special_tokens=["<|endoftext|>"])
 
 
-# helper to sample 10 documents from a file using <|endoftext|> as delimiter
 def sample_docs(path, n=10):
     with open(path, encoding="utf-8") as f:
         text = f.read()
@@ -31,7 +29,6 @@ def sample_docs(path, n=10):
     return random.sample(docs, n)
 
 
-# TinyStories sample
 tiny_docs = sample_docs("data/TinyStoriesV2-GPT4-train.txt", 10)
 tiny_bytes = 0
 tiny_tokens = 0
@@ -43,7 +40,6 @@ for d in tiny_docs:
 
 tiny_ratio = tiny_bytes / tiny_tokens if tiny_tokens else float("inf")
 
-# OpenWebText sample (use the 1MB sample to save time)
 owt_docs = sample_docs("data/owt_train_sample_1mb.txt", 10)
 owt_bytes = 0
 owt_tokens = 0

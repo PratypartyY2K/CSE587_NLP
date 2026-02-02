@@ -14,10 +14,8 @@ start = time.time()
 bytes_processed = 0
 ids_count = 0
 with open(path, encoding="utf-8") as f:
-    # read in chunks but use encode_iterable which handles streaming
     for tid in tokenizer.encode_iterable(f):
         ids_count += 1
-# compute bytes
 with open(path, "rb") as fb:
     bytes_processed = len(fb.read())
 end = time.time()

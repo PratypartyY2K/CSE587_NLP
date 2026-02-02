@@ -31,10 +31,8 @@ def run_transformer_block_impl(
     x = torch.as_tensor(in_features)
     seq_len = x.shape[-2]
 
-    # LN1
     ln1_w = weights.get("ln1.weight")
 
-    # create RMSNorm and load weight if present
     if isinstance(ln1_w, torch.Tensor):
         ln1 = RMSNorm(d_model=d_model, eps=1e-5, device=ln1_w.device, dtype=ln1_w.dtype)
         with torch.no_grad():
@@ -42,10 +40,8 @@ def run_transformer_block_impl(
     else:
         ln1 = RMSNorm(d_model=d_model, eps=1e-5, device=x.device)
 
-    # Apply pre-norm before attention
     x_ln1 = ln1(x)
 
-    # Attention
     q_w = weights.get("attn.q_proj.weight")
     if q_w is None:
         q_w = weights.get("attn.q.weight")
@@ -79,7 +75,6 @@ def run_transformer_block_impl(
 
     y = x + attn_out
 
-    # LN2
     ln2_w = weights.get("ln2.weight")
     if isinstance(ln2_w, torch.Tensor):
         ln2 = RMSNorm(d_model=d_model, eps=1e-5, device=ln2_w.device, dtype=ln2_w.dtype)
@@ -90,13 +85,11 @@ def run_transformer_block_impl(
 
     ffn_in = ln2(y)
 
-    # FFN: prefer SwiGLU (w1,w2,w3). If only w2/w3 present, do SiLU MLP
     w1 = weights.get("ffn.w1.weight")
     w2 = weights.get("ffn.w2.weight")
     w3 = weights.get("ffn.w3.weight")
 
     if w1 is not None and w2 is not None and w3 is not None:
-        # build SwiGLU using weights
         W1 = torch.as_tensor(w1)
         W2 = torch.as_tensor(w2)
         W3 = torch.as_tensor(w3)
@@ -141,27 +134,22 @@ def run_transformer_lm_impl(
         rope_theta=rope_theta,
     )
 
-    # Load token embeddings
     if "token_embeddings.weight" in weights:
         with torch.no_grad():
             model.token_embeddings.weight.copy_(weights["token_embeddings.weight"])
-    # Load lm_head
     if "lm_head.weight" in weights:
         with torch.no_grad():
             model.lm_head.copy_(weights["lm_head.weight"])
-    # Load ln_final
     if "ln_final.weight" in weights:
         with torch.no_grad():
             model.ln_final.weight.copy_(weights["ln_final.weight"])
 
-    # Load layer weights
     for i in range(num_layers):
         prefix = f"layers.{i}."
         layer_weights = {k[len(prefix) :]: v for k, v in weights.items() if k.startswith(prefix)}
         if not layer_weights:
             continue
         block = model.blocks[i]
-        # attention proj
         for name in ["q_proj.weight", "k_proj.weight", "v_proj.weight", "output_proj.weight"]:
             key = prefix + ("attn." + name)
             if key in weights:
@@ -172,14 +160,12 @@ def run_transformer_lm_impl(
                     param = getattr(block, name.split("_")[0] + "_proj")
                     with torch.no_grad():
                         param.copy_(weights[key])
-        # ln1, ln2
         if prefix + "ln1.weight" in weights:
             with torch.no_grad():
                 block.ln1.weight.copy_(weights[prefix + "ln1.weight"])
         if prefix + "ln2.weight" in weights:
             with torch.no_grad():
                 block.ln2.weight.copy_(weights[prefix + "ln2.weight"])
-        # ffn weights
         if prefix + "ffn.w1.weight" in weights:
             with torch.no_grad():
                 block.w1.copy_(weights[prefix + "ffn.w1.weight"])
