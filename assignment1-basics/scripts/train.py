@@ -11,12 +11,12 @@ python scripts/train.py --train-data out/tiny_train_ids.npy --valid-data out/tin
     --vocab-size 10000 --context-length 512 --d-model 512 --num-layers 6 --num-heads 8 \
     --batch-size 32 --lr 1e-3 --total-steps 10000 --device cpu --checkpoint out/checkpoint.pt
 """
+
 from __future__ import annotations
 
 import argparse
 import os
 import time
-from typing import Optional
 
 import numpy as np
 import torch
@@ -26,14 +26,13 @@ from cs336_basics.transformer import TransformerLM
 from cs336_basics.impl import (
     AdamW,
     run_get_batch_impl,
-    run_get_lr_cosine_schedule_impl,
     run_save_checkpoint_impl,
     run_load_checkpoint_impl,
     run_gradient_clipping_impl,
 )
 
 
-def load_memmap(path: str, dtype: Optional[str] = None) -> np.ndarray:
+def load_memmap(path: str, dtype: str | None = None) -> np.ndarray:
     """Load a numpy array in memory-mapped read-only mode if possible."""
     if not os.path.exists(path):
         raise FileNotFoundError(path)
@@ -48,7 +47,14 @@ def load_memmap(path: str, dtype: Optional[str] = None) -> np.ndarray:
     return arr
 
 
-def evaluate(model: torch.nn.Module, dataset: np.ndarray, batch_size: int, context_length: int, device: str, num_eval_batches: int = 10):
+def evaluate(
+    model: torch.nn.Module,
+    dataset: np.ndarray,
+    batch_size: int,
+    context_length: int,
+    device: str,
+    num_eval_batches: int = 10,
+):
     model.eval()
     total_loss = 0.0
     with torch.no_grad():
@@ -148,20 +154,18 @@ def main():
             now = time.time()
             elapsed = now - report_time
             steps = args.log_interval
-            print(
-                f"step={it+1}/{args.total_steps} loss={loss.item():.6f} time_per_{steps}steps={elapsed:.2f}s"
-            )
+            print(f"step={it + 1}/{args.total_steps} loss={loss.item():.6f} time_per_{steps}steps={elapsed:.2f}s")
             report_time = now
 
         if valid_data is not None and (it + 1) % args.eval_interval == 0:
             val_loss = evaluate(model, valid_data, args.batch_size, context_length, device, num_eval_batches=5)
-            print(f"[eval] step={it+1} val_loss={val_loss:.6f}")
+            print(f"[eval] step={it + 1} val_loss={val_loss:.6f}")
 
         if (it + 1) % args.save_interval == 0:
             # Save checkpoint
             try:
                 run_save_checkpoint_impl(model, optimizer, it + 1, args.checkpoint)
-                print(f"Saved checkpoint to {args.checkpoint} at step {it+1}")
+                print(f"Saved checkpoint to {args.checkpoint} at step {it + 1}")
             except Exception as e:
                 print(f"Error saving checkpoint to {args.checkpoint}: {e}")
 

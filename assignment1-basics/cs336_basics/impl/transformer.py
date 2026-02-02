@@ -5,7 +5,6 @@ Exports `run_transformer_block_impl` and `run_transformer_lm_impl` used by tests
 
 from __future__ import annotations
 
-from typing import Dict
 
 import torch
 from torch import Tensor
@@ -21,7 +20,7 @@ def run_transformer_block_impl(
     d_ff: int,
     max_seq_len: int,
     theta: float,
-    weights: Dict[str, Tensor],
+    weights: dict[str, Tensor],
     in_features: Tensor,
 ) -> Tensor:
     """Run a single pre-norm Transformer block using provided weights.
@@ -126,7 +125,7 @@ def run_transformer_lm_impl(
     num_heads: int,
     d_ff: int,
     rope_theta: float,
-    weights: Dict[str, Tensor],
+    weights: dict[str, Tensor],
     in_indices: Tensor,
 ) -> Tensor:
     """Construct a TransformerLM, load provided weights into its parameters, and run a forward pass."""

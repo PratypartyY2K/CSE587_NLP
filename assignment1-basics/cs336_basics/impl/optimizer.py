@@ -6,7 +6,7 @@ Provides a minimal AdamW optimizer and a cosine LR schedule used by tests.
 from __future__ import annotations
 
 import math
-from typing import Iterable, Tuple
+from collections.abc import Iterable
 
 import torch
 from torch import Tensor
@@ -23,18 +23,18 @@ class AdamW(Optimizer):
         self,
         params: Iterable[Tensor],
         lr: float = 1e-3,
-        betas: Tuple[float, float] = (0.9, 0.999),
+        betas: tuple[float, float] = (0.9, 0.999),
         eps: float = 1e-8,
         weight_decay: float = 0.0,
     ) -> None:
         if lr is None:
-            raise ValueError("Invalid learning rate: {}".format(lr))
+            raise ValueError(f"Invalid learning rate: {lr}")
         if not 0.0 <= eps:
-            raise ValueError("Invalid eps value: {}".format(eps))
+            raise ValueError(f"Invalid eps value: {eps}")
         if not 0.0 <= betas[0] < 1.0:
-            raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
+            raise ValueError(f"Invalid beta parameter at index 0: {betas[0]}")
         if not 0.0 <= betas[1] < 1.0:
-            raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
+            raise ValueError(f"Invalid beta parameter at index 1: {betas[1]}")
 
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay)
         super().__init__(params, defaults)

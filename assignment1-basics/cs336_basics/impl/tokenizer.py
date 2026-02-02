@@ -7,20 +7,20 @@ from __future__ import annotations
 
 import regex as re
 from collections import Counter
-from typing import List, Dict, Tuple, Iterator
+from collections.abc import Iterator
 import json
 
 GPT2_SPLIT_PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 
 def train_bpe(
-    input_path: str, vocab_size: int, special_tokens: List[str]
-) -> Tuple[Dict[int, bytes], List[Tuple[bytes, bytes]]]:
+    input_path: str, vocab_size: int, special_tokens: list[str]
+) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
     min_allowed = 256 + len(special_tokens)
     if vocab_size < min_allowed:
         raise ValueError(f"`vocab_size` must be at least {min_allowed} (256 + number of special tokens).")
 
-    with open(input_path, "r", encoding="utf-8") as f:
+    with open(input_path, encoding="utf-8") as f:
         text = f.read()
 
     split_regex = re.compile(GPT2_SPLIT_PATTERN)
@@ -44,8 +44,8 @@ def train_bpe(
             token_ids = tuple(tok_bytes)
             word_counts[token_ids] += 1
 
-    vocab: Dict[int, bytes] = {i: bytes([i]) for i in range(256)}
-    merges: List[Tuple[bytes, bytes]] = []
+    vocab: dict[int, bytes] = {i: bytes([i]) for i in range(256)}
+    merges: list[tuple[bytes, bytes]] = []
 
     num_merges = vocab_size - 256 - len(special_tokens)
     if num_merges < 0:
@@ -96,24 +96,24 @@ def train_bpe(
 
 class Tokenizer:
     def __init__(
-        self, vocab: Dict[int, bytes], merges: List[Tuple[bytes, bytes]], special_tokens: List[str] | None = None
+        self, vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], special_tokens: list[str] | None = None
     ):
         self.vocab = dict(vocab)
         self.merges = list(merges)
         self.special_tokens = list(special_tokens) if special_tokens else []
 
         # inverse mapping bytes->id
-        self.vocab_inv: Dict[bytes, int] = {v: k for k, v in self.vocab.items()}
+        self.vocab_inv: dict[bytes, int] = {v: k for k, v in self.vocab.items()}
 
         # map special token string -> id if present in vocab
-        self.special_token_to_id: Dict[str, int] = {}
+        self.special_token_to_id: dict[str, int] = {}
         for st in self.special_tokens:
             b = st.encode("utf-8")
             if b in self.vocab_inv:
                 self.special_token_to_id[st] = self.vocab_inv[b]
 
         # merge ranks: earlier merges have lower rank
-        self.merge_ranks: Dict[Tuple[bytes, bytes], int] = {pair: i for i, pair in enumerate(self.merges)}
+        self.merge_ranks: dict[tuple[bytes, bytes], int] = {pair: i for i, pair in enumerate(self.merges)}
 
         # compile split pattern
         self.split_regex = re.compile(GPT2_SPLIT_PATTERN)
@@ -128,12 +128,12 @@ class Tokenizer:
             self._max_special_len = 0
 
     @classmethod
-    def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens: List[str] | None = None):
+    def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None = None):
         with open(vocab_filepath, encoding="utf-8") as f:
             gpt2_vocab = json.load(f)
-        vocab: Dict[int, bytes] = {int(idx): token.encode("utf-8") for token, idx in gpt2_vocab.items()}
+        vocab: dict[int, bytes] = {int(idx): token.encode("utf-8") for token, idx in gpt2_vocab.items()}
 
-        merges: List[Tuple[bytes, bytes]] = []
+        merges: list[tuple[bytes, bytes]] = []
         with open(merges_filepath, encoding="utf-8") as f:
             for line in f:
                 line = line.rstrip()
@@ -146,7 +146,7 @@ class Tokenizer:
 
         return cls(vocab, merges, special_tokens)
 
-    def _apply_bpe_to_token_bytes(self, token_bytes: bytes) -> List[int]:
+    def _apply_bpe_to_token_bytes(self, token_bytes: bytes) -> list[int]:
         word = [self.vocab_inv[bytes([b])] for b in token_bytes]
 
         while True:
@@ -174,8 +174,8 @@ class Tokenizer:
             word = new_word
         return word
 
-    def encode(self, text: str) -> List[int]:
-        ids: List[int] = []
+    def encode(self, text: str) -> list[int]:
+        ids: list[int] = []
         if self._special_pattern:
             parts = self._special_pattern.split(text)
         else:
@@ -260,8 +260,8 @@ class Tokenizer:
                         for tid in self._apply_bpe_to_token_bytes(token_bytes):
                             yield tid
 
-    def decode(self, ids: List[int]) -> str:
-        parts: List[bytes] = []
+    def decode(self, ids: list[int]) -> str:
+        parts: list[bytes] = []
         for tid in ids:
             if tid in self.vocab:
                 parts.append(self.vocab[tid])

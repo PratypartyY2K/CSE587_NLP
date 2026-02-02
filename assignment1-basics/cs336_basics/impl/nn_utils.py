@@ -7,7 +7,7 @@ cross-entropy, gradient clipping, and small adapter runners (linear, embedding, 
 from __future__ import annotations
 
 import math
-from typing import Iterable
+from collections.abc import Iterable
 
 import torch
 from torch import Tensor

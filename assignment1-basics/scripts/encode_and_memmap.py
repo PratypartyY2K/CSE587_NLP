@@ -7,7 +7,7 @@ import pickle
 import numpy as np
 from cs336_basics.impl import Tokenizer
 from multiprocessing import Pool, cpu_count
-from typing import Iterator, List
+from collections.abc import Iterator
 
 
 def load_tokenizer(vocab_pkl, merges_pkl, special_tokens=None):
@@ -63,7 +63,7 @@ def _worker_count(doc: str) -> int:
     return len(ids)
 
 
-def _worker_encode(doc: str) -> List[int]:
+def _worker_encode(doc: str) -> list[int]:
     global _WORKER_TOKENIZER
     return _WORKER_TOKENIZER.encode(doc)
 

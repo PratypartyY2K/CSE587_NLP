@@ -6,7 +6,7 @@ Exports:
 
 from __future__ import annotations
 
-from typing import Iterable, List, Optional
+from collections.abc import Iterable
 
 import torch
 import torch.nn.functional as F
@@ -45,8 +45,8 @@ def run_generate_impl(
     temperature: float = 1.0,
     top_p: float = 1.0,
     device: str = "cpu",
-    eos_token_id: Optional[int] = None,
-) -> List[int]:
+    eos_token_id: int | None = None,
+) -> list[int]:
     """Autoregressively generate tokens from `model` starting from `input_ids`.
 
     Parameters

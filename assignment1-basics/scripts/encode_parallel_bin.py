@@ -12,7 +12,7 @@ import argparse
 import pickle
 import time
 from multiprocessing import Pool, cpu_count
-from typing import Iterator
+from collections.abc import Iterator
 
 import numpy as np
 from cs336_basics.impl import Tokenizer
