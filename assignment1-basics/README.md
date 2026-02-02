@@ -47,9 +47,3 @@ Project layout (high level)
 - `tests/` — unit tests that exercise the required functionality. Run with `pytest`.
 - `data/` — small sample datasets (tracked in repo).
 - `artifacts/`, `out/` — directories used for large tokenizer artifacts and encoded outputs (ignored by git).
-
-Notes
-- Large datasets and tokenizer artifacts should be created using the provided scripts and saved outside of source control (the repository `.gitignore` is set up to ignore `artifacts/` and `out/`).
-- The project includes a simple training script (`scripts/train.py`) and encoding helpers that use `numpy.memmap` for memory-efficient processing.
-
-If you want a short guided walkthrough for any piece (training tokenizer, tokenizing a dataset, training a small LM, or generating text), tell me which area you'd like to explore and I'll provide exact commands and minimal examples.
