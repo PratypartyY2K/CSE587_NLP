@@ -1,8 +1,3 @@
-"""Byte-level BPE training and tokenizer implementation.
-
-Exports `train_bpe` (train a byte-level BPE tokenizer) and `Tokenizer`.
-"""
-
 from __future__ import annotations
 
 import regex as re

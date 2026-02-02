@@ -1,9 +1,3 @@
-"""Utilities and small NN-layer adapters.
-
-Contains focused implementations used by tests: softmax, SiLU, batch sampling,
-cross-entropy, gradient clipping, and small adapter runners (linear, embedding, SwiGLU, RMSNorm).
-"""
-
 from __future__ import annotations
 
 import math
@@ -33,9 +27,6 @@ def run_silu_impl(in_features: Tensor) -> Tensor:
 
 
 def run_get_batch_impl(dataset, batch_size: int, context_length: int, device: str):
-    """Sample language-modeling batches from a 1D numpy array dataset.
-    Returns x,y torch.LongTensor on the specified device with shapes (batch_size, context_length).
-    """
     import numpy as np
     import torch
 
@@ -66,10 +57,6 @@ def run_cross_entropy_impl(inputs: Tensor, targets: Tensor) -> Tensor:
 
 
 def run_gradient_clipping_impl(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float, eps: float = 1e-6) -> None:
-    """Clip gradients of the provided parameters in-place to have total L2 norm at most max_l2_norm.
-
-    Mirrors torch.nn.utils.clip_grad_norm_. Uses eps=1e-6.
-    """
     total_norm_sq = 0.0
     grads = []
     for p in parameters:

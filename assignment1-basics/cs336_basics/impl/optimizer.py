@@ -1,8 +1,3 @@
-"""Optimizer helpers: AdamW and LR schedule implementations.
-
-Provides a minimal AdamW optimizer and a cosine LR schedule used by tests.
-"""
-
 from __future__ import annotations
 
 import math
@@ -14,11 +9,6 @@ from torch.optim.optimizer import Optimizer
 
 
 class AdamW(Optimizer):
-    """AdamW optimizer (decoupled weight decay).
-
-    Minimal implementation compatible with torch.optim.Optimizer API used in tests.
-    """
-
     def __init__(
         self,
         params: Iterable[Tensor],
@@ -103,7 +93,6 @@ def run_get_lr_cosine_schedule_impl(
     warmup_iters: int,
     cosine_cycle_iters: int,
 ):
-    """Linear warmup followed by cosine annealing schedule."""
     t = int(it)
     alpha_max = float(max_learning_rate)
     alpha_min = float(min_learning_rate)

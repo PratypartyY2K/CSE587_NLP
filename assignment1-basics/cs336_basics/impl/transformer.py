@@ -1,8 +1,3 @@
-"""Transformer helpers for a pre-norm block and a small Transformer LM runner.
-
-Exports `run_transformer_block_impl` and `run_transformer_lm_impl` used by tests.
-"""
-
 from __future__ import annotations
 
 
@@ -13,7 +8,6 @@ from ..rmsnorm import RMSNorm
 from ..swiglu import SwiGLU
 from .attention import run_multihead_self_attention_with_rope_impl
 
-
 def run_transformer_block_impl(
     d_model: int,
     num_heads: int,
@@ -23,11 +17,6 @@ def run_transformer_block_impl(
     weights: dict[str, Tensor],
     in_features: Tensor,
 ) -> Tensor:
-    """Run a single pre-norm Transformer block using provided weights.
-
-    This mirrors the original implementation in adapters_impl but keeps local imports
-    limited to avoid circular dependencies.
-    """
     x = torch.as_tensor(in_features)
     seq_len = x.shape[-2]
 
@@ -121,7 +110,6 @@ def run_transformer_lm_impl(
     weights: dict[str, Tensor],
     in_indices: Tensor,
 ) -> Tensor:
-    """Construct a TransformerLM, load provided weights into its parameters, and run a forward pass."""
     from ..transformer import TransformerLM
 
     model = TransformerLM(

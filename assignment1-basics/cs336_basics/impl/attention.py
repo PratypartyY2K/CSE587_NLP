@@ -1,8 +1,3 @@
-"""Attention helpers: scaled dot-product, multi-head, and RoPE wrappers.
-
-Implements core attention routines used by transformer blocks and tests.
-"""
-
 from __future__ import annotations
 
 import math

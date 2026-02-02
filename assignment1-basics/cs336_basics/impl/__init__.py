@@ -1,9 +1,3 @@
-"""Implementation package facade for cs336_basics.impl.
-
-This module re-exports named implementation functions and classes so callers can
-import them from `cs336_basics.impl`.
-"""
-
 from .nn_utils import (
     run_softmax_impl,
     run_silu_impl,

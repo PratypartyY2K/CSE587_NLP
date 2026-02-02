@@ -1,9 +1,3 @@
-"""Sampling / generation helpers for TransformerLM.
-
-Exports:
-- run_generate_impl: autoregressive sampling with temperature and top-p (nucleus) sampling.
-"""
-
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -13,11 +7,6 @@ import torch.nn.functional as F
 
 
 def _top_p_filtering(probs: torch.Tensor, top_p: float) -> torch.Tensor:
-    """Zero-out probabilities outside the smallest nucleus with cumulative prob >= top_p.
-
-    probs: 1D tensor of probabilities (not logits), shape (V,)
-    Returns a renormalized probability tensor.
-    """
     if top_p >= 1.0:
         return probs
     sorted_probs, sorted_indices = torch.sort(probs, descending=True)
@@ -43,19 +32,6 @@ def run_generate_impl(
     device: str = "cpu",
     eos_token_id: int | None = None,
 ) -> list[int]:
-    """Autoregressively generate tokens from `model` starting from `input_ids`.
-
-    Parameters
-    - model: a callable that maps input tensor of shape (1, seq_len) to logits (1, seq_len, vocab_size)
-    - input_ids: sequence of initial token ids (list/int iterable or torch.Tensor)
-    - max_new_tokens: maximum number of tokens to generate
-    - temperature: softmax temperature (float > 0). Values <1 concentrate, >1 flatten.
-    - top_p: nucleus sampling threshold in (0,1]; if 1.0 no filtering
-    - device: device string where tensors and model are located
-    - eos_token_id: optional id that terminates generation when sampled
-
-    Returns the full output token id sequence (prompt + generated) as a Python list of ints.
-    """
     model = model.to(device)
     model.eval()
 
