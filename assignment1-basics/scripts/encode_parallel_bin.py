@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-"""Parallel tokenizer encoder (document-level parallelism).
-
-Streams the input file by document (split on <|endoftext|>), encodes documents in a
-process Pool, writes uint16 token buffers into a temporary binary file, then converts
-that into a .npy memmap. Uses document-level parallelism to keep memory usage low.
-"""
-
 import os
 import sys
 import argparse

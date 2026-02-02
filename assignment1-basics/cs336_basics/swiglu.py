@@ -24,9 +24,9 @@ class SwiGLU(nn.Module):
         nn.init.trunc_normal_(self.w3, mean=0.0, std=std_w3)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        u = x.matmul(self.w1.t())  # (..., d_ff)
-        v = x.matmul(self.w3.t())  # (..., d_ff)
+        u = x.matmul(self.w1.t())
+        v = x.matmul(self.w3.t())
         gate = u * torch.sigmoid(u)
         activated = gate * v
-        out = activated.matmul(self.w2.t())  # (..., d_model)
+        out = activated.matmul(self.w2.t())
         return out

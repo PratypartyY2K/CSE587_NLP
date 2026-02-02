@@ -1,7 +1,3 @@
-"""
-Transformer LM implementation: TransformerBlock and TransformerLM.
-"""
-
 import math
 import torch
 from torch import nn

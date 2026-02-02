@@ -1,10 +1,5 @@
-"""Small SGD experiment: minimize (w - 3)^2 using SGD with various learning rates.
-Run for 10 iterations and print loss trajectory.
-"""
-
-
 def run_sgd(lr, iters=10):
-    w = 0.0  # init parameter
+    w = 0.0
     losses = []
     for i in range(iters):
         loss = (w - 3.0) ** 2

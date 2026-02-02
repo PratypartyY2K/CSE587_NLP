@@ -1,8 +1,3 @@
-"""Rotary positional embeddings (RoPE).
-
-Provides a RoPE module that applies rotation to query/key vectors.
-"""
-
 import torch
 from torch import nn
 

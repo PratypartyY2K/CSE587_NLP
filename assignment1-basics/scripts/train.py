@@ -1,17 +1,3 @@
-"""Training script for the TransformerLM model.
-
-Features:
-- Configure model and optimizer hyperparameters via command-line args.
-- Memory-efficient dataset loading via numpy.memmap (np.load(..., mmap_mode='r')).
-- Checkpoint save/load using the impl IO helpers.
-- Periodic evaluation and console logging; optional Weights & Biases logging if installed.
-
-Usage (quick):
-python scripts/train.py --train-data out/tiny_train_ids.npy --valid-data out/tiny_valid_ids.npy \
-    --vocab-size 10000 --context-length 512 --d-model 512 --num-layers 6 --num-heads 8 \
-    --batch-size 32 --lr 1e-3 --total-steps 10000 --device cpu --checkpoint out/checkpoint.pt
-"""
-
 from __future__ import annotations
 
 import argparse
@@ -33,7 +19,6 @@ from cs336_basics.impl import (
 
 
 def load_memmap(path: str, dtype: str | None = None) -> np.ndarray:
-    """Load a numpy array in memory-mapped read-only mode if possible."""
     if not os.path.exists(path):
         raise FileNotFoundError(path)
     try:
