@@ -28,6 +28,7 @@ from .transformer import (
 from .tokenizer import train_bpe, Tokenizer
 from .optimizer import AdamW, run_get_lr_cosine_schedule_impl
 from .io import run_save_checkpoint_impl, run_load_checkpoint_impl
+from .generation import run_generate_impl
 
 __all__ = [
     "run_softmax_impl",
@@ -47,6 +48,7 @@ __all__ = [
     "run_get_lr_cosine_schedule_impl",
     "run_save_checkpoint_impl",
     "run_load_checkpoint_impl",
+    "run_generate_impl",
     # nn layer helpers
     "run_linear_impl",
     "run_embedding_impl",
