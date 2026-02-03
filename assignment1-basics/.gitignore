@@ -64,8 +64,6 @@ tokenizers/
 *.bin
 
 # Data files
-# Ignore large raw data files by default to avoid accidentally committing multi-GB datasets.
-# Keep small, curated samples in the repository by whitelisting them explicitly.
 data/*.txt
 
 tests/
@@ -83,3 +81,6 @@ Thumbs.db
 
 # Local machine-specific files
 local_settings.py
+
+# zip files
+*.zip
