@@ -109,10 +109,10 @@ uv run python scripts/train.py \
 Generate text (sampling)
 
 ```python
-from cs336_basics.impl import run_generate_impl
+from cs336_basics.impl import generate
 # model is a TransformerLM instance already loaded or instantiated
 prompt = [1, 2, 3]
-out_ids = run_generate_impl(model, prompt, max_new_tokens=128, temperature=0.8, top_p=0.9, device='cpu', eos_token_id=50256)
+out_ids = generate(model, prompt, max_new_tokens=128, temperature=0.8, top_p=0.9, device='cpu', eos_token_id=50256)
 ```
 
 Developer notes

@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any
 import torch
 
-def run_save_checkpoint_impl(
+
+def save_checkpoint(
     model: Any,
     optimizer: Any,
     iteration: int,
@@ -17,7 +18,7 @@ def run_save_checkpoint_impl(
     torch.save(payload, out)
 
 
-def run_load_checkpoint_impl(src: Any, model: Any, optimizer: Any) -> int:
+def load_checkpoint(src: Any, model: Any, optimizer: Any) -> int:
     payload = torch.load(src, map_location="cpu")
     model.load_state_dict(payload["model_state_dict"])
     optimizer.load_state_dict(payload["optimizer_state_dict"])

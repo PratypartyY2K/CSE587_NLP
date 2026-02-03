@@ -1,4 +1,4 @@
-def run_sgd(lr, iters=10):
+def sgd(lr, iters=10):
     w = 0.0
     losses = []
     for i in range(iters):
@@ -12,5 +12,5 @@ def run_sgd(lr, iters=10):
 if __name__ == "__main__":
     lrs = [1e1, 1e2, 1e3]
     for lr in lrs:
-        losses, w = run_sgd(lr, iters=10)
+        losses, w = sgd(lr, iters=10)
         print(f"lr={lr}: final w={w:.6e}, losses={', '.join(f'{x:.6e}' for x in losses)}")

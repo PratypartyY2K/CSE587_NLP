@@ -12,7 +12,7 @@ from ..swiglu import SwiGLU
 from ..rmsnorm import RMSNorm
 
 
-def run_softmax_impl(in_features: Tensor, dim: int) -> Tensor:
+def softmax(in_features: Tensor, dim: int) -> Tensor:
     x = torch.as_tensor(in_features)
     max_along_dim = torch.amax(x, dim=dim, keepdim=True)
     x_stable = x - max_along_dim
@@ -21,12 +21,12 @@ def run_softmax_impl(in_features: Tensor, dim: int) -> Tensor:
     return exp_x / sum_exp
 
 
-def run_silu_impl(in_features: Tensor) -> Tensor:
+def silu(in_features: Tensor) -> Tensor:
     x = torch.as_tensor(in_features)
     return torch.nn.functional.silu(x)
 
 
-def run_get_batch_impl(dataset, batch_size: int, context_length: int, device: str):
+def get_batch(dataset, batch_size: int, context_length: int, device: str):
     import numpy as np
     import torch
 
@@ -42,7 +42,7 @@ def run_get_batch_impl(dataset, batch_size: int, context_length: int, device: st
     return x_t, y_t
 
 
-def run_cross_entropy_impl(inputs: Tensor, targets: Tensor) -> Tensor:
+def cross_entropy(inputs: Tensor, targets: Tensor) -> Tensor:
     x = torch.as_tensor(inputs)
     t = torch.as_tensor(targets, dtype=torch.long)
 
@@ -56,7 +56,7 @@ def run_cross_entropy_impl(inputs: Tensor, targets: Tensor) -> Tensor:
     return loss_per_example.mean()
 
 
-def run_gradient_clipping_impl(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float, eps: float = 1e-6) -> None:
+def gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float, eps: float = 1e-6) -> None:
     total_norm_sq = 0.0
     grads = []
     for p in parameters:
@@ -81,7 +81,7 @@ def run_gradient_clipping_impl(parameters: Iterable[torch.nn.Parameter], max_l2_
         g.mul_(clip_coef)
 
 
-def run_linear_impl(d_in: int, d_out: int, weights: Tensor, in_features: Tensor) -> Tensor:
+def linear(d_in: int, d_out: int, weights: Tensor, in_features: Tensor) -> Tensor:
     W = torch.as_tensor(weights)
     model = Linear(
         in_features=d_in,
@@ -94,7 +94,7 @@ def run_linear_impl(d_in: int, d_out: int, weights: Tensor, in_features: Tensor)
     return model(torch.as_tensor(in_features))
 
 
-def run_embedding_impl(vocab_size: int, d_model: int, weights: Tensor, token_ids: Tensor) -> Tensor:
+def embedding(vocab_size: int, d_model: int, weights: Tensor, token_ids: Tensor) -> Tensor:
     W = torch.as_tensor(weights)
     emb = Embedding(
         num_embeddings=vocab_size,
@@ -108,9 +108,7 @@ def run_embedding_impl(vocab_size: int, d_model: int, weights: Tensor, token_ids
     return emb(ids)
 
 
-def run_swiglu_impl(
-    d_model: int, d_ff: int, w1_weight: Tensor, w2_weight: Tensor, w3_weight: Tensor, in_features: Tensor
-) -> Tensor:
+def swiglu(d_model: int, d_ff: int, w1_weight: Tensor, w2_weight: Tensor, w3_weight: Tensor, in_features: Tensor) -> Tensor:
     W1 = torch.as_tensor(w1_weight)
     W2 = torch.as_tensor(w2_weight)
     W3 = torch.as_tensor(w3_weight)
@@ -127,7 +125,7 @@ def run_swiglu_impl(
     return swiglu(torch.as_tensor(in_features))
 
 
-def run_rmsnorm_impl(d_model: int, eps: float, weights: Tensor, in_features: Tensor) -> Tensor:
+def rmsnorm(d_model: int, eps: float, weights: Tensor, in_features: Tensor) -> Tensor:
     w = torch.as_tensor(weights)
     rms = RMSNorm(
         d_model=d_model,

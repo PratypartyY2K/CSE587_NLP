@@ -23,7 +23,7 @@ def _top_p_filtering(probs: torch.Tensor, top_p: float) -> torch.Tensor:
     return filtered / s
 
 
-def run_generate_impl(
+def generate(
     model: torch.nn.Module,
     input_ids: Iterable[int] | torch.Tensor,
     max_new_tokens: int,

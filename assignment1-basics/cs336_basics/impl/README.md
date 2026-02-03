@@ -27,34 +27,34 @@ from the impl package in tests and scripts to keep dependencies stable.
   - `Tokenizer` class: `encode`, `encode_iterable`, `decode`, `from_files`.
 
 - Attention & Transformer helpers
-  - `run_scaled_dot_product_attention_impl`
-  - `run_multihead_self_attention_impl`
-  - `run_rope_impl` / `run_multihead_self_attention_with_rope_impl`
-  - `run_transformer_block_impl`, `run_transformer_lm_impl`
+  - `scaled_dot_product_attention`
+  - `multihead_self_attention`
+  - `rope` / `multihead_self_attention_with_rope`
+  - `transformer_block`, `transformer_lm`
 
 - NN utilities and small layer adapters
-  - `run_softmax_impl`, `run_silu_impl`
-  - `run_get_batch_impl` — sample LM batches from a 1D token array (supports np.memmap)
-  - `run_cross_entropy_impl` — numerically stable cross-entropy
-  - `run_gradient_clipping_impl`
-  - `run_linear_impl`, `run_embedding_impl`, `run_swiglu_impl`, `run_rmsnorm_impl`
+  - `softmax`, `silu`
+  - `get_batch` — sample LM batches from a 1D token array (supports np.memmap)
+  - `cross_entropy` — numerically stable cross-entropy
+  - `gradient_clipping`
+  - `linear`, `embedding`, `swiglu`, `rmsnorm`
 
 - Optimizer & schedule
   - `AdamW` (a torch.optim.Optimizer-compatible minimal AdamW implementation)
-  - `run_get_lr_cosine_schedule_impl` (LR warmup + cosine anneal helper)
+  - `get_lr_cosine_schedule` (LR warmup + cosine anneal helper)
 
 - I/O and generation
-  - `run_save_checkpoint_impl`, `run_load_checkpoint_impl`
-  - `run_generate_impl` — autoregressive sampling with temperature and top-p
+  - `save_checkpoint`, `load_checkpoint`
+  - `generate` — autoregressive sampling with temperature and top-p
 
 Usage examples
 ---------------
 Basic import pattern (recommended from tests and scripts):
 
 ```python
-from cs336_basics.impl import Tokenizer, train_bpe, run_get_batch_impl
-from cs336_basics.impl import AdamW, run_get_lr_cosine_schedule_impl
-from cs336_basics.impl import run_save_checkpoint_impl, run_load_checkpoint_impl
+from cs336_basics.impl import Tokenizer, train_bpe, get_batch
+from cs336_basics.impl import AdamW, get_lr_cosine_schedule
+from cs336_basics.impl import save_checkpoint, load_checkpoint, generate
 ```
 
 Train a small BPE tokenizer and save artifacts:
@@ -73,27 +73,27 @@ Sampling batches for training (memory-efficient):
 
 ```python
 import numpy as np
-from cs336_basics.impl import run_get_batch_impl
+from cs336_basics.impl import get_batch
 arr = np.load('out/tiny_train_ids.npy', mmap_mode='r')  # memmap
-x, y = run_get_batch_impl(arr, batch_size=32, context_length=128, device='cpu')
+x, y = get_batch(arr, batch_size=32, context_length=128, device='cpu')
 ```
 
 Saving and loading checkpoints (recommended pattern):
 
 ```python
 # Save
-run_save_checkpoint_impl(model, optimizer, iteration, 'out/checkpoint.pt')
+save_checkpoint(model, optimizer, iteration, 'out/checkpoint.pt')
 # Load
-iteration = run_load_checkpoint_impl('out/checkpoint.pt', model, optimizer)
+iteration = load_checkpoint('out/checkpoint.pt', model, optimizer)
 ```
 
 Text generation example (sampling):
 
 ```python
-from cs336_basics.impl import run_generate_impl
+from cs336_basics.impl import generate
 # model: TransformerLM instance (loaded / constructed)
 prompt = [1,2,3]
-out_ids = run_generate_impl(model, prompt, max_new_tokens=100, temperature=0.8, top_p=0.9, device='cpu', eos_token_id=50256)
+out_ids = generate(model, prompt, max_new_tokens=100, temperature=0.8, top_p=0.9, device='cpu', eos_token_id=50256)
 ```
 
 Developer workflow & tests

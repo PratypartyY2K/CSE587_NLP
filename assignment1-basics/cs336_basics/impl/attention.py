@@ -8,7 +8,7 @@ from torch import Tensor
 from ..rope import RotaryPositionalEmbedding
 
 
-def run_scaled_dot_product_attention_impl(Q: Tensor, K: Tensor, V: Tensor, mask: Tensor | None = None) -> Tensor:
+def scaled_dot_product_attention(Q: Tensor, K: Tensor, V: Tensor, mask: Tensor | None = None) -> Tensor:
     q = torch.as_tensor(Q)
     k = torch.as_tensor(K)
     v = torch.as_tensor(V)
@@ -24,7 +24,7 @@ def run_scaled_dot_product_attention_impl(Q: Tensor, K: Tensor, V: Tensor, mask:
     return out
 
 
-def run_multihead_self_attention_impl(
+def multihead_self_attention(
     d_model: int,
     num_heads: int,
     q_proj_weight: Tensor,
@@ -54,14 +54,14 @@ def run_multihead_self_attention_impl(
     return mha(x)
 
 
-def run_rope_impl(d_k: int, theta: float, max_seq_len: int, in_query_or_key: Tensor, token_positions: Tensor) -> Tensor:
+def rope(d_k: int, theta: float, max_seq_len: int, in_query_or_key: Tensor, token_positions: Tensor) -> Tensor:
     x = torch.as_tensor(in_query_or_key)
     pos = torch.as_tensor(token_positions)
     rope = RotaryPositionalEmbedding(theta=theta, d_k=d_k, max_seq_len=max_seq_len, device=x.device)
     return rope(x, pos)
 
 
-def run_multihead_self_attention_with_rope_impl(
+def multihead_self_attention_with_rope(
     d_model: int,
     num_heads: int,
     max_seq_len: int,

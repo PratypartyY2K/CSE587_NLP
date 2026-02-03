@@ -86,7 +86,7 @@ class AdamW(Optimizer):
                         p.grad.zero_()
 
 
-def run_get_lr_cosine_schedule_impl(
+def get_lr_cosine_schedule(
     it: int,
     max_learning_rate: float,
     min_learning_rate: float,

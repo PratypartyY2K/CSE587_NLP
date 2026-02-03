@@ -11,10 +11,10 @@ import torch.nn.functional as F
 from cs336_basics.transformer import TransformerLM
 from cs336_basics.impl import (
     AdamW,
-    run_get_batch_impl,
-    run_save_checkpoint_impl,
-    run_load_checkpoint_impl,
-    run_gradient_clipping_impl,
+    get_batch,
+    save_checkpoint,
+    load_checkpoint,
+    gradient_clipping,
 )
 
 
@@ -42,7 +42,7 @@ def evaluate(
     total_loss = 0.0
     with torch.no_grad():
         for _ in range(num_eval_batches):
-            x, y = run_get_batch_impl(dataset, batch_size, context_length, device)
+            x, y = get_batch(dataset, batch_size, context_length, device)
             logits = model(x)  # (B, L, V)
             B, L, V = logits.shape
             loss = F.cross_entropy(logits.view(B * L, V), y.view(B * L), reduction="mean")
@@ -105,7 +105,7 @@ def main():
     start_step = int(args.start_step)
     if os.path.exists(args.checkpoint):
         try:
-            step = run_load_checkpoint_impl(args.checkpoint, model, optimizer)
+            step = load_checkpoint(args.checkpoint, model, optimizer)
             print(f"Loaded checkpoint '{args.checkpoint}' at iteration {step}")
             start_step = int(step)
         except Exception as e:
@@ -116,7 +116,7 @@ def main():
     t0 = time.time()
     report_time = t0
     for it in range(start_step, args.total_steps):
-        x, y = run_get_batch_impl(train_data, args.batch_size, context_length, device)
+        x, y = get_batch(train_data, args.batch_size, context_length, device)
 
         logits = model(x)  # (B, L, V)
         B, L, V = logits.shape
@@ -125,7 +125,7 @@ def main():
         optimizer.zero_grad()
         loss.backward()
         if args.grad_clip and args.grad_clip > 0:
-            run_gradient_clipping_impl(model.parameters(), args.grad_clip)
+            gradient_clipping(model.parameters(), args.grad_clip)
         optimizer.step()
 
         if (it + 1) % args.log_interval == 0:
@@ -141,7 +141,7 @@ def main():
 
         if (it + 1) % args.save_interval == 0:
             try:
-                run_save_checkpoint_impl(model, optimizer, it + 1, args.checkpoint)
+                save_checkpoint(model, optimizer, it + 1, args.checkpoint)
                 print(f"Saved checkpoint to {args.checkpoint} at step {it + 1}")
             except Exception as e:
                 print(f"Error saving checkpoint to {args.checkpoint}: {e}")
