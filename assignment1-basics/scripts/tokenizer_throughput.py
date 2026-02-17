@@ -9,7 +9,7 @@ with open("owt_small_tokenizer_merges.pkl", "rb") as f:
 
 tokenizer = Tokenizer(vocab, merges, special_tokens=["<|endoftext|>"])
 
-path = "data/owt_train_sample_1mb.txt"
+path = "data/owt_train.txt"
 start = time.time()
 bytes_processed = 0
 ids_count = 0

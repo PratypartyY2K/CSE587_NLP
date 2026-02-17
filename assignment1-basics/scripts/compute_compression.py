@@ -40,7 +40,7 @@ for d in tiny_docs:
 
 tiny_ratio = tiny_bytes / tiny_tokens if tiny_tokens else float("inf")
 
-owt_docs = sample_docs("data/owt_train_sample_1mb.txt", 10)
+owt_docs = sample_docs("data/owt_train.txt", 10)
 owt_bytes = 0
 owt_tokens = 0
 for d in owt_docs:

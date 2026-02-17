@@ -18,7 +18,7 @@ with open("owt_small_tokenizer_merges.pkl", "rb") as f:
 
 owt = Tokenizer(owt_vocab, owt_merges, special_tokens=["<|endoftext|>"])
 
-with open("data/owt_train_sample_1mb.txt", encoding="utf-8") as f:
+with open("data/owt_train.txt", encoding="utf-8") as f:
     text = f.read()
 
 docs = [d for d in text.split("<|endoftext|>") if d.strip()]

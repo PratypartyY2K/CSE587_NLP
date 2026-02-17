@@ -144,8 +144,8 @@ def main():
             "owt_small_tokenizer_vocab.pkl",
             "owt_small_tokenizer_merges.pkl",
             ["<|endoftext|>"],
-            "data/owt_train_100mb.txt",
-            "out/owt_train_100mb_ids.npy",
+            "data/owt_train.txt",
+            "out/owt_train_ids.npy",
         ),
         (
             "owt_small_tokenizer_vocab.pkl",

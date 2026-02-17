@@ -2,7 +2,7 @@ import time
 import pickle
 from cs336_basics.impl import train_bpe
 
-input_path = "data/owt_train_sample_1mb.txt"
+input_path = "data/owt_train.txt"
 vocab_size = 32000
 special_tokens = ["<|endoftext|>"]
 
