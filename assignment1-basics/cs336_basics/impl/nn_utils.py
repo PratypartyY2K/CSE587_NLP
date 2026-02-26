@@ -35,8 +35,11 @@ def get_batch(dataset, batch_size: int, context_length: int, device: str):
     if n <= context_length:
         raise ValueError("dataset too small for context_length")
     starts = np.random.randint(0, n - context_length, size=(batch_size,))
-    x_batch = np.stack([arr[s : s + context_length] for s in starts], axis=0)
-    y_batch = np.stack([arr[s + 1 : s + 1 + context_length] for s in starts], axis=0)
+    offsets = np.arange(context_length)
+    x_idx = starts[:, None] + offsets[None, :]
+    y_idx = x_idx + 1
+    x_batch = arr[x_idx]
+    y_batch = arr[y_idx]
     x_t = torch.as_tensor(x_batch, dtype=torch.long, device=device)
     y_t = torch.as_tensor(y_batch, dtype=torch.long, device=device)
     return x_t, y_t
