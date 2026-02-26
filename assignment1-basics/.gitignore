@@ -84,3 +84,5 @@ local_settings.py
 
 # zip files
 *.zip
+
+*.pdf
