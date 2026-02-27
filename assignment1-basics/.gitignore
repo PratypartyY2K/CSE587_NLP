@@ -66,8 +66,6 @@ tokenizers/
 # Data files
 data/*.txt
 
-tests/
-
 # OS files
 .DS_Store
 Thumbs.db
