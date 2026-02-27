@@ -6,9 +6,10 @@ import time
 
 import numpy as np
 import torch
-import torch.nn.functional as F
 
 from cs336_basics.transformer import TransformerLM
+from cs336_basics.impl.nn_utils import cross_entropy
+from cs336_basics.impl.optimizer import get_lr_cosine_schedule
 from cs336_basics.impl import (
     AdamW,
     get_batch,
@@ -44,8 +45,7 @@ def evaluate(
         for _ in range(num_eval_batches):
             x, y = get_batch(dataset, batch_size, context_length, device)
             logits = model(x)  # (B, L, V)
-            B, L, V = logits.shape
-            loss = F.cross_entropy(logits.view(B * L, V), y.view(B * L), reduction="mean")
+            loss = cross_entropy(logits, y)
             total_loss += float(loss.item())
     model.train()
     return total_loss / max(1, num_eval_batches)
@@ -117,10 +117,17 @@ def main():
     report_time = t0
     for it in range(start_step, args.total_steps):
         x, y = get_batch(train_data, args.batch_size, context_length, device)
-
-        logits = model(x)  # (B, L, V)
-        B, L, V = logits.shape
-        loss = F.cross_entropy(logits.view(B * L, V), y.view(B * L), reduction="mean")
+        current_lr = get_lr_cosine_schedule(
+            it=it,
+            max_learning_rate=args.lr,
+            min_learning_rate=args.lr * 0.1,
+            warmup_iters=1000,
+            cosine_cycle_iters=args.total_steps
+        )
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = current_lr
+        logits = model(x)
+        loss = cross_entropy(logits, y)
 
         optimizer.zero_grad()
         loss.backward()
