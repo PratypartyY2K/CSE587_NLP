@@ -1,12 +1,16 @@
 # cs336_basics.impl
 
-Canonical assignment implementations used by tests and scripts.
+Canonical implementations used by tests and scripts.
 
-## Includes
+## Required functionality
 
-- tokenizer + BPE training
-- attention/transformer helpers
-- optimizer, loss, batching, checkpointing
+- tokenizer and BPE training
+- attention and transformer helpers
+- optimizer and LR schedule
+- batching, cross-entropy, gradient clipping
+- checkpoint save/load
 - text generation helper
 
-Import from `cs336_basics.impl` in scripts/tests.
+## Import rule
+
+Import helpers from `cs336_basics.impl` in tests and scripts.

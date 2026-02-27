@@ -1,9 +1,17 @@
 # cs336_basics
 
-Core model modules used by the assignment.
+Model-level components for the assignment.
 
-## Contents
+## Required modules
 
-- basic layers (embedding, linear, norm, attention)
-- transformer model
-- helper implementations in `cs336_basics/impl/`
+- `embedding.py`
+- `linear.py`
+- `multihead_attention.py`
+- `rmsnorm.py`
+- `rope.py`
+- `swiglu.py`
+- `transformer.py`
+
+## Note
+
+Canonical tested helper implementations are in `cs336_basics/impl/`.

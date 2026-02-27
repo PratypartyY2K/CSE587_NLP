@@ -1,19 +1,21 @@
 # scripts
 
-Utility scripts for tokenizer training, dataset encoding, and model training.
+Core scripts required for the assignment pipeline.
 
-## Usage
+## Required scripts
+
+- `train_bpe_run.py`: train TinyStories BPE tokenizer
+- `encode_parallel_bin.py`: encode text files into token-id `.npy` arrays
+- `train.py`: train and evaluate Transformer LM
+
+## Required usage
 
 ```bash
-python scripts/<script>.py --help
+python scripts/train_bpe_run.py
+python scripts/encode_parallel_bin.py --help
+python scripts/train.py --help
 ```
 
-## Data rule
+## Required data rule
 
-Use only repo-local dataset files under `data/`.
-
-## Main scripts
-
-- `train_bpe_run.py`: train TinyStories tokenizer
-- `encode_parallel_bin.py`: encode text to `.npy` token IDs
-- `train.py`: train/evaluate language model
+Script inputs must come from repo-local `data/` files.
