@@ -5,6 +5,7 @@ from torch import nn
 from .embedding import Embedding
 from .rope import RotaryPositionalEmbedding
 from .rmsnorm import RMSNorm
+from .swiglu import SwiGLU
 
 
 class TransformerBlock(nn.Module):
@@ -28,9 +29,7 @@ class TransformerBlock(nn.Module):
         self.ln1 = RMSNorm(d_model=d_model)
         self.ln2 = RMSNorm(d_model=d_model)
 
-        self.w1 = nn.Parameter(torch.empty((d_ff, d_model), **factory_kwargs))
-        self.w2 = nn.Parameter(torch.empty((d_model, d_ff), **factory_kwargs))
-        self.w3 = nn.Parameter(torch.empty((d_ff, d_model), **factory_kwargs))
+        self.ffn = SwiGLU(d_model=self.d_model, d_ff=self.d_ff)
 
         std = 1.0 / math.sqrt(d_model) if d_model > 0 else 1.0
         nn.init.trunc_normal_(self.q_proj, mean=0.0, std=std)
@@ -84,12 +83,7 @@ class TransformerBlock(nn.Module):
         x = x + out
 
         x_ln2 = self.ln2(x)
-        u = torch.matmul(x_ln2, self.w1.t())
-        vff = torch.matmul(x_ln2, self.w3.t())
-        gate = u * torch.sigmoid(u)
-        ff = gate * vff
-        ff_out = torch.matmul(ff, self.w2.t())
-        x = x + ff_out
+        x = x + self.ffn(x_ln2)
         return x
 
 
