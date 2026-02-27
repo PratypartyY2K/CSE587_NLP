@@ -13,6 +13,17 @@ from cs336_basics.impl import Tokenizer
 _WORKER_TOKENIZER = None
 
 
+def _is_repo_data_path(path: str) -> bool:
+    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    data_root = os.path.join(repo_root, "data")
+    abs_path = os.path.abspath(path)
+    try:
+        common = os.path.commonpath([abs_path, data_root])
+    except ValueError:
+        return False
+    return common == data_root
+
+
 def _init_worker(vocab_pkl: str, merges_pkl: str, special_tokens=None):
     global _WORKER_TOKENIZER
     with open(vocab_pkl, "rb") as f:
@@ -109,6 +120,9 @@ def main():
 
     if not args.input:
         print("Please provide --input path")
+        sys.exit(1)
+    if not _is_repo_data_path(args.input):
+        print(f"Input path must be inside repo data/ directory: {args.input}")
         sys.exit(1)
     bin_path = args.out + ".bin"
     npy_path = args.out
