@@ -1,0 +1,41 @@
+{
+  "num_examples": 1,
+  "mean_metrics": {
+    "answer_reward": 0.0,
+    "format_reward": 0.0,
+    "reward": 0.0
+  },
+  "category_counts": {
+    "correct_format1_answer1": 0,
+    "formatted_wrong_format1_answer0": 0,
+    "unformatted_format0_answer0": 1
+  },
+  "samples": {
+    "correct_format1_answer1": [],
+    "formatted_wrong_format1_answer0": [],
+    "unformatted_format0_answer0": [
+      {
+        "index": 0,
+        "problem": "The lengths of the sides of a non-degenerate triangle are $x$, 13 and 37 units. How many integer values of $x$ are possible?",
+        "ground_truth": "By the triangle inequality, \\begin{align*}\nx + 13 &> 37, \\\\\nx + 37 &> 13, \\\\\n13 + 37 &> x,\n\\end{align*} which tell us that $x > 24$, $x > -24$, and $x < 50$.  Hence, the possible values of $x$ are $25, 26, \\dots, 49$, for a total of $49 - 25 + 1 = \\boxed{25}$.",
+        "prompt": "A conversation between User and Assistant. The User asks a question, and the Assistant solves it. The Assistant first thinks about the reasoning process in the mind and then provides the User with the answer. The reasoning process is enclosed within <think> </think> and answer is enclosed within <answer> </answer> tags, respectively, i.e., <think> reasoning process here </think> <answer> answer here </answer>.\nUser: The lengths of the sides of a non-degenerate triangle are $x$, 13 and 37 units. How many integer values of $x$ are possible?\nAssistant: <think>",
+        "response": " The triangle inequality theorem states that the sum of the lengths of any two sides of a triangle must be greater than the length of the remaining side. Therefore, for a triangle with sides of lengths $x$, 13, and 37, we have the following inequalities: $x + 13 > ",
+        "metrics": {
+          "format_reward": 0.0,
+          "answer_reward": 0.0,
+          "reward": 0.0
+        }
+      }
+    ]
+  },
+  "input_path": "data/MATH/validation.jsonl",
+  "prompt_path": "alignment/prompts/r1_zero.prompt",
+  "results_path": "outputs/qwen_vllm_smoke/results.jsonl",
+  "sampling_params": {
+    "temperature": 0.0,
+    "top_p": 1.0,
+    "max_tokens": 64
+  },
+  "model_name_or_path": "Qwen/Qwen2.5-Math-1.5B",
+  "runtime": "vllm"
+}
