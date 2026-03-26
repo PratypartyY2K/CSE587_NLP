@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 from torch import Tensor
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 
 def tokenize_prompt_and_output(
@@ -67,3 +67,22 @@ def compute_entropy(logits: Tensor) -> Tensor:
     log_probs = logits - log_z
     probs = torch.exp(log_probs)
     return -(probs * log_probs).sum(dim=-1)
+
+
+def get_response_log_probs(
+    model: PreTrainedModel,
+    input_ids: Tensor,
+    labels: Tensor,
+    return_token_entropy: bool = False,
+) -> dict[str, Tensor]:
+    """Get per-token conditional log-probabilities and optional token entropy."""
+    logits = model(input_ids).logits
+    log_probs = torch.log_softmax(logits, dim=-1)
+
+    output = {
+        "log_probs": torch.gather(log_probs, dim=-1, index=labels.unsqueeze(-1)).squeeze(-1),
+    }
+    if return_token_entropy:
+        output["token_entropy"] = compute_entropy(logits)
+
+    return output

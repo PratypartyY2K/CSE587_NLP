@@ -6,9 +6,9 @@ from typing import Any, Callable, Literal
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
-from alignment.sft import compute_entropy, tokenize_prompt_and_output
+from alignment.sft import compute_entropy, get_response_log_probs, tokenize_prompt_and_output
 
 
 def run_tokenize_prompt_and_output(
@@ -92,11 +92,11 @@ def run_compute_entropy(logits: torch.Tensor) -> torch.Tensor:
 
 
 def run_get_response_log_probs(
-    model: torch.nn.Module,
+    model: PreTrainedModel,
     input_ids: torch.Tensor,
     labels: torch.Tensor,
     return_token_entropy: bool,
-) -> torch.Tensor:
+) -> dict[str, Tensor]:
     """Get the conditional log-probs of the response given the prompt,
         and optionally the entropy of the next token predictions.
 
@@ -120,7 +120,12 @@ def run_get_response_log_probs(
                 we have not masked out the token indices corresponding to the prompt
                 or padding; that is done in the train loop.
     """
-    raise NotImplementedError
+    return get_response_log_probs(
+        model=model,
+        input_ids=input_ids,
+        labels=labels,
+        return_token_entropy=return_token_entropy,
+    )
 
 
 def run_compute_naive_policy_gradient_loss(
