@@ -81,10 +81,10 @@ def evaluate_vllm(
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input-path", default="data/MATH/validation.jsonl")
+    parser.add_argument("--input-path", default="data/gsm8k/test.jsonl")
     parser.add_argument(
         "--dataset-format",
-        default="auto",
+        default="gsm8k",
         choices=["auto", "math", "gsm8k", "canonical"],
     )
     parser.add_argument("--prompt-path", default="alignment/prompts/r1_zero.prompt")
