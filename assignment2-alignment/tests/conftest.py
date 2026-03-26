@@ -209,18 +209,23 @@ def output_strs():
 
 
 @pytest.fixture
-def model_id():
-    return "/data/a5-alignment/models/Qwen2.5-Math-1.5B"
+def tokenizer_id():
+    return str(Path(__file__).parent / "fixtures" / "Meta-Llama-3-8B")
 
 
 @pytest.fixture
-def tokenizer(model_id):
-    return AutoTokenizer.from_pretrained(model_id)
+def model_id():
+    return str(Path(__file__).parent / "fixtures" / "tiny-gpt2")
+
+
+@pytest.fixture
+def tokenizer(tokenizer_id):
+    return AutoTokenizer.from_pretrained(tokenizer_id, local_files_only=True)
 
 
 @pytest.fixture
 def model(model_id):
-    return AutoModelForCausalLM.from_pretrained(model_id)
+    return AutoModelForCausalLM.from_pretrained(model_id, local_files_only=True)
 
 
 @pytest.fixture
