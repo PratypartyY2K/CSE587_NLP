@@ -103,9 +103,11 @@ def collate_sft_batch(
         input_ids = input_ids[:, -max_seq_length:]
         labels = labels[:, -max_seq_length:]
         response_mask = response_mask[:, -max_seq_length:]
+    attention_mask = input_ids.ne(tokenizer.pad_token_id)
 
     return {
         "input_ids": input_ids,
+        "attention_mask": attention_mask,
         "labels": labels,
         "response_mask": response_mask,
     }
@@ -282,7 +284,8 @@ def main() -> None:
         lr=args.learning_rate,
         weight_decay=args.weight_decay,
     )
-    num_update_steps_per_epoch = math.ceil(len(dataloader) / args.gradient_accumulation_steps)
+    num_batches_per_epoch = math.ceil(len(dataset) / args.per_device_batch_size)
+    num_update_steps_per_epoch = max(1, math.ceil(num_batches_per_epoch / args.gradient_accumulation_steps))
     num_training_steps = max(1, args.num_epochs * num_update_steps_per_epoch)
     num_warmup_steps = int(args.warmup_ratio * num_training_steps)
     scheduler = get_linear_schedule_with_warmup(
@@ -338,10 +341,11 @@ def main() -> None:
                 continue
 
             input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
             response_mask = batch["response_mask"].to(device)
 
-            outputs = model(input_ids=input_ids)
+            outputs = model(input_ids=input_ids, attention_mask=attention_mask)
             loss = masked_ce_loss(outputs.logits, labels, response_mask)
             (loss / args.gradient_accumulation_steps).backward()
             running_losses.append(float(loss.detach().cpu()))
