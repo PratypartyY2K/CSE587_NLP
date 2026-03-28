@@ -15,6 +15,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from alignment.datasets import load_normalized_dataset
 from alignment.drgrpo_grader import r1_zero_reward_fn
+from alignment.hf_utils import resolve_model_source
 
 logger = logging.getLogger(__name__)
 
@@ -117,8 +118,10 @@ def main() -> None:
         for example in normalized_examples
     ]
 
+    resolved_model_path = resolve_model_source(args.model_name_or_path)
+
     model = vllm.LLM(
-        model=args.model_name_or_path,
+        model=resolved_model_path,
         tensor_parallel_size=args.num_gpus,
         trust_remote_code=True,
         max_model_len=args.max_model_len,

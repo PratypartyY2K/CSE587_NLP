@@ -19,6 +19,7 @@ if str(ROOT) not in sys.path:
 
 from alignment.datasets import load_jsonl, load_normalized_dataset
 from alignment.drgrpo_grader import r1_zero_reward_fn
+from alignment.hf_utils import resolve_model_source
 from alignment.sft import tokenize_prompt_and_output
 
 
@@ -250,7 +251,7 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch_dtype = torch.bfloat16 if args.bf16 and torch.cuda.is_available() else None
 
-    tokenizer_source = args.resume_from_checkpoint or args.model_name_or_path
+    tokenizer_source = args.resume_from_checkpoint or resolve_model_source(args.model_name_or_path)
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, trust_remote_code=True)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token

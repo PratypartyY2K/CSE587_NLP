@@ -15,11 +15,18 @@ import argparse
 import json
 import logging
 import sys
+from pathlib import Path
 from statistics import mean
 
 from tqdm import tqdm
 from transformers import AutoTokenizer
 from xopen import xopen
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from alignment.hf_utils import resolve_model_source
 
 try:
     from vllm import LLM, SamplingParams
@@ -33,13 +40,14 @@ logger = logging.getLogger(__name__)
 
 
 def main(input_path, model_name_or_path, num_gpus, output_path):
+    resolved_model_path = resolve_model_source(model_name_or_path)
     model = LLM(
-        model=model_name_or_path,
+        model=resolved_model_path,
         tensor_parallel_size=num_gpus,
         trust_remote_code=True,
         max_model_len=6144,
     )
-    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(resolved_model_path)
     input_examples = []
     with xopen(input_path) as f:
         for line in f:
