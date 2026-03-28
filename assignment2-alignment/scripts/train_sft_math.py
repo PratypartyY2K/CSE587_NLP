@@ -50,6 +50,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-val-examples", type=int, default=None)
     parser.add_argument("--eval-batch-size", type=int, default=8)
     parser.add_argument("--max-new-tokens", type=int, default=512)
+    parser.add_argument("--checkpoint-every-steps", type=int, default=0)
+    parser.add_argument("--resume-from-checkpoint", type=str, default=None)
     parser.add_argument("--gradient-checkpointing", action="store_true")
     parser.add_argument("--bf16", action="store_true")
     return parser.parse_args()
@@ -91,10 +93,10 @@ def collate_sft_batch(
     labels = batch["labels"][:, :max_seq_length]
     response_mask = batch["response_mask"][:, :max_seq_length]
 
-    if input_ids.shape[1] > max_prompt_length:
-        input_ids = input_ids[:, -max_prompt_length:]
-        labels = labels[:, -max_prompt_length:]
-        response_mask = response_mask[:, -max_prompt_length:]
+    if input_ids.shape[1] > max_seq_length:
+        input_ids = input_ids[:, -max_seq_length:]
+        labels = labels[:, -max_seq_length:]
+        response_mask = response_mask[:, -max_seq_length:]
 
     return {
         "input_ids": input_ids,
@@ -168,6 +170,60 @@ def evaluate(
     }
 
 
+def build_dataloader(dataset, collate_fn, batch_size: int, seed: int, epoch: int) -> DataLoader:
+    generator = torch.Generator()
+    generator.manual_seed(seed + epoch)
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=collate_fn,
+        generator=generator,
+    )
+
+
+def save_training_checkpoint(
+    checkpoint_dir: Path,
+    *,
+    model,
+    tokenizer,
+    optimizer,
+    scheduler,
+    global_step: int,
+    epoch: int,
+    step_in_epoch: int,
+    running_losses: list[float],
+) -> None:
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    model.save_pretrained(checkpoint_dir)
+    tokenizer.save_pretrained(checkpoint_dir)
+    torch.save(
+        {
+            "optimizer": optimizer.state_dict(),
+            "scheduler": scheduler.state_dict(),
+            "global_step": global_step,
+            "epoch": epoch,
+            "step_in_epoch": step_in_epoch,
+            "running_losses": running_losses[-100:],
+            "python_random_state": random.getstate(),
+            "torch_rng_state": torch.random.get_rng_state(),
+            "cuda_rng_state_all": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
+        },
+        checkpoint_dir / "training_state.pt",
+    )
+
+
+def load_training_checkpoint(checkpoint_dir: Path, optimizer, scheduler) -> dict:
+    training_state = torch.load(checkpoint_dir / "training_state.pt", map_location="cpu")
+    optimizer.load_state_dict(training_state["optimizer"])
+    scheduler.load_state_dict(training_state["scheduler"])
+    random.setstate(training_state["python_random_state"])
+    torch.random.set_rng_state(training_state["torch_rng_state"])
+    if torch.cuda.is_available() and training_state["cuda_rng_state_all"] is not None:
+        torch.cuda.set_rng_state_all(training_state["cuda_rng_state_all"])
+    return training_state
+
+
 def main() -> None:
     args = parse_args()
     set_seed(args.seed)
@@ -189,15 +245,17 @@ def main() -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch_dtype = torch.bfloat16 if args.bf16 and torch.cuda.is_available() else None
 
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, trust_remote_code=True)
+    tokenizer_source = args.resume_from_checkpoint or args.model_name_or_path
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, trust_remote_code=True)
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
     if args.max_seq_length < 1:
         raise ValueError("--max-seq-length must be positive")
     tokenizer.model_max_length = args.max_seq_length
 
     model = AutoModelForCausalLM.from_pretrained(
-        args.model_name_or_path,
+        tokenizer_source,
         trust_remote_code=True,
         torch_dtype=torch_dtype,
     )
@@ -213,13 +271,6 @@ def main() -> None:
         max_prompt_length=args.max_prompt_length,
         max_seq_length=args.max_seq_length,
     )
-    dataloader = DataLoader(
-        dataset,
-        batch_size=args.per_device_batch_size,
-        shuffle=True,
-        collate_fn=collate_fn,
-    )
-
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=args.learning_rate,
@@ -238,28 +289,48 @@ def main() -> None:
     summary_path = output_dir / "summary.json"
     global_step = 0
     running_losses: list[float] = []
+    start_epoch = 0
+    resume_step_in_epoch = 0
 
     def write_metric_row(row: dict) -> None:
         with metrics_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(row) + "\n")
 
-    initial_eval = evaluate(
-        model=model,
-        tokenizer=tokenizer,
-        prompt_template=prompt_template,
-        val_examples=val_examples,
-        device=device,
-        eval_batch_size=args.eval_batch_size,
-        max_new_tokens=args.max_new_tokens,
-    )
-    write_metric_row({"step": 0, "epoch": 0.0, **initial_eval})
+    if args.resume_from_checkpoint is not None:
+        checkpoint_dir = Path(args.resume_from_checkpoint)
+        training_state = load_training_checkpoint(checkpoint_dir, optimizer, scheduler)
+        global_step = int(training_state["global_step"])
+        start_epoch = int(training_state["epoch"])
+        resume_step_in_epoch = int(training_state["step_in_epoch"])
+        running_losses = list(training_state.get("running_losses", []))
+    else:
+        initial_eval = evaluate(
+            model=model,
+            tokenizer=tokenizer,
+            prompt_template=prompt_template,
+            val_examples=val_examples,
+            device=device,
+            eval_batch_size=args.eval_batch_size,
+            max_new_tokens=args.max_new_tokens,
+        )
+        write_metric_row({"step": 0, "epoch": 0.0, **initial_eval})
 
-    progress = tqdm(total=num_training_steps, desc="train")
+    progress = tqdm(total=num_training_steps, desc="train", initial=global_step)
     optimizer.zero_grad(set_to_none=True)
 
-    for epoch in range(args.num_epochs):
+    for epoch in range(start_epoch, args.num_epochs):
         model.train()
+        dataloader = build_dataloader(
+            dataset,
+            collate_fn=collate_fn,
+            batch_size=args.per_device_batch_size,
+            seed=args.seed,
+            epoch=epoch,
+        )
         for step_in_epoch, batch in enumerate(dataloader, start=1):
+            if epoch == start_epoch and step_in_epoch <= resume_step_in_epoch:
+                continue
+
             input_ids = batch["input_ids"].to(device)
             labels = batch["labels"].to(device)
             response_mask = batch["response_mask"].to(device)
@@ -302,8 +373,32 @@ def main() -> None:
 
             write_metric_row(row)
 
-    model.save_pretrained(output_dir / "checkpoint")
-    tokenizer.save_pretrained(output_dir / "checkpoint")
+            if args.checkpoint_every_steps > 0 and global_step % args.checkpoint_every_steps == 0:
+                save_training_checkpoint(
+                    output_dir / f"checkpoint-step-{global_step}",
+                    model=model,
+                    tokenizer=tokenizer,
+                    optimizer=optimizer,
+                    scheduler=scheduler,
+                    global_step=global_step,
+                    epoch=epoch,
+                    step_in_epoch=step_in_epoch,
+                    running_losses=running_losses,
+                )
+
+        resume_step_in_epoch = 0
+
+    save_training_checkpoint(
+        output_dir / "checkpoint",
+        model=model,
+        tokenizer=tokenizer,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        global_step=global_step,
+        epoch=args.num_epochs,
+        step_in_epoch=0,
+        running_losses=running_losses,
+    )
 
     final_summary = {
         "model_name_or_path": args.model_name_or_path,

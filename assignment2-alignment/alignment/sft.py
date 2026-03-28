@@ -21,8 +21,8 @@ def tokenize_prompt_and_output(
     else:
         pad_token_id = tokenizer.pad_token_id
 
-    prompt_tokenized = tokenizer(prompt_strs, add_special_tokens=False)["input_ids"]
-    output_tokenized = tokenizer(output_strs, add_special_tokens=False)["input_ids"]
+    prompt_tokenized = tokenizer(prompt_strs, add_special_tokens=False, verbose=False)["input_ids"]
+    output_tokenized = tokenizer(output_strs, add_special_tokens=False, verbose=False)["input_ids"]
     prompt_and_output_ids = [
         prompt_ids + output_ids
         for prompt_ids, output_ids in zip(prompt_tokenized, output_tokenized, strict=True)
