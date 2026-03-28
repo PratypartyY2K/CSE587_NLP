@@ -4,6 +4,7 @@ import argparse
 import json
 import math
 import random
+import sys
 from pathlib import Path
 from statistics import mean
 
@@ -11,6 +12,10 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer, get_linear_schedule_with_warmup
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from alignment.datasets import load_jsonl, load_normalized_dataset
 from alignment.drgrpo_grader import r1_zero_reward_fn
