@@ -1,0 +1,9 @@
+{"step": 0, "epoch": 0.0, "val_accuracy": 0.1, "val_format_reward": 0.215, "val_reward": 0.1}
+{"step": 1, "epoch": 0.125, "train_loss": 1.2421875, "learning_rate": 1.7500000000000002e-05}
+{"step": 2, "epoch": 0.25, "train_loss": 1.1048828125, "learning_rate": 1.5000000000000002e-05}
+{"step": 3, "epoch": 0.375, "train_loss": 1.091015625, "learning_rate": 1.25e-05}
+{"step": 4, "epoch": 0.5, "train_loss": 1.0791015625, "learning_rate": 1e-05}
+{"step": 5, "epoch": 0.625, "train_loss": 1.183984375, "learning_rate": 7.500000000000001e-06}
+{"step": 6, "epoch": 0.75, "train_loss": 1.1654296875, "learning_rate": 5e-06}
+{"step": 7, "epoch": 0.875, "train_loss": 1.0927734375, "learning_rate": 2.5e-06}
+{"step": 8, "epoch": 1.0, "train_loss": 1.0345703125, "learning_rate": 0.0, "val_accuracy": 0.03, "val_format_reward": 0.065, "val_reward": 0.03}
