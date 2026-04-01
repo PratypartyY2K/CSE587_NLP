@@ -58,6 +58,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-new-tokens", type=int, default=512)
     parser.add_argument("--checkpoint-every-steps", type=int, default=0)
     parser.add_argument("--resume-from-checkpoint", type=str, default=None)
+    parser.add_argument("--hf-cache-dir", type=str, default=None)
     parser.add_argument("--gradient-checkpointing", action="store_true")
     parser.add_argument("--bf16", action="store_true")
     return parser.parse_args()
@@ -258,8 +259,15 @@ def main() -> None:
         device = torch.device("cpu")
     torch_dtype = torch.bfloat16 if args.bf16 and torch.cuda.is_available() else None
 
-    tokenizer_source = args.resume_from_checkpoint or resolve_model_source(args.model_name_or_path)
-    tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, trust_remote_code=True)
+    tokenizer_source = args.resume_from_checkpoint or resolve_model_source(
+        args.model_name_or_path,
+        cache_dir=args.hf_cache_dir,
+    )
+    tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer_source,
+        trust_remote_code=True,
+        cache_dir=args.hf_cache_dir,
+    )
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "left"
@@ -271,6 +279,7 @@ def main() -> None:
         tokenizer_source,
         trust_remote_code=True,
         torch_dtype=torch_dtype,
+        cache_dir=args.hf_cache_dir,
     )
     if args.gradient_checkpointing:
         model.gradient_checkpointing_enable()
