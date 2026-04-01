@@ -1,0 +1,9 @@
+{
+  "input_path": "data/sft.jsonl",
+  "output_path": "data/sft_correct_only.jsonl",
+  "input_examples": 1000,
+  "matched_examples": 1000,
+  "unmatched_examples": 0,
+  "filtered_examples": 631,
+  "retained_fraction": 0.631
+}
