@@ -231,6 +231,40 @@ def compute_policy_gradient_loss(
     raise ValueError(f"Unsupported loss_type: {loss_type}")
 
 
+def grpo_microbatch_train_step(
+    policy_log_probs: torch.Tensor,
+    response_mask: torch.Tensor,
+    gradient_accumulation_steps: int,
+    loss_type: Literal["no_baseline", "reinforce_with_baseline", "grpo_clip"],
+    raw_rewards: torch.Tensor | None = None,
+    advantages: torch.Tensor | None = None,
+    old_log_probs: torch.Tensor | None = None,
+    cliprange: float | None = None,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    """Compute masked GRPO loss for one microbatch and backpropagate it."""
+    token_loss, metadata = compute_policy_gradient_loss(
+        policy_log_probs=policy_log_probs,
+        loss_type=loss_type,
+        raw_rewards=raw_rewards,
+        advantages=advantages,
+        old_log_probs=old_log_probs,
+        cliprange=cliprange,
+    )
+    pg_loss = masked_mean(
+        tensor=token_loss,
+        mask=response_mask,
+    )
+    loss = pg_loss / gradient_accumulation_steps
+    loss.backward()
+
+    step_metadata = {
+        "pg_loss": pg_loss.detach(),
+        "num_response_tokens": response_mask.sum().detach(),
+    }
+    step_metadata.update({key: value.detach() for key, value in metadata.items()})
+    return loss.detach(), step_metadata
+
+
 def sft_microbatch_train_step(
     policy_log_probs: torch.Tensor,
     response_mask: torch.Tensor,
