@@ -158,7 +158,7 @@ def run_compute_naive_policy_gradient_loss(
         torch.Tensor of shape (batch_size, sequence_length): 
             the policy gradient per-token loss.
     """
-    raise NotImplementedError
+    return -policy_log_probs * raw_rewards_or_advantages
 
 
 def run_compute_grpo_clip_loss(
