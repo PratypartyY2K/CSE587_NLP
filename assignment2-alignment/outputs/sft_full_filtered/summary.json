@@ -1,0 +1,13 @@
+{
+  "model_name_or_path": "Qwen/Qwen2.5-Math-1.5B",
+  "train_examples": 631,
+  "val_examples": 50,
+  "learning_rate": 2e-05,
+  "per_device_batch_size": 1,
+  "gradient_accumulation_steps": 16,
+  "num_epochs": 1,
+  "num_training_steps": 40,
+  "best_val_accuracy": 0.06,
+  "best_val_step": 0,
+  "best_val_reward": 0.06
+}
