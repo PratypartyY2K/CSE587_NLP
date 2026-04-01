@@ -149,6 +149,19 @@ def masked_normalize(
     return masked_tensor.sum(dim=dim) / normalize_constant
 
 
+def masked_mean(
+    tensor: torch.Tensor,
+    mask: torch.Tensor,
+    dim: int | None = None,
+) -> torch.Tensor:
+    """Compute the mean over masked elements."""
+    masked_tensor = tensor * mask.to(dtype=tensor.dtype)
+    mask_count = mask.to(dtype=tensor.dtype).sum(dim=dim)
+    if dim is None:
+        return masked_tensor.sum() / mask_count
+    return masked_tensor.sum(dim=dim) / mask_count
+
+
 def compute_naive_policy_gradient_loss(
     raw_rewards_or_advantages: torch.Tensor,
     policy_log_probs: torch.Tensor,
