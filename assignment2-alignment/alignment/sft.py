@@ -69,6 +69,52 @@ def compute_entropy(logits: Tensor) -> Tensor:
     return -(probs * log_probs).sum(dim=-1)
 
 
+def compute_group_normalized_rewards(
+    reward_fn,
+    rollout_responses: list[str],
+    repeated_ground_truths: list[str],
+    group_size: int,
+    advantage_eps: float,
+    normalize_by_std: bool,
+) -> tuple[Tensor, Tensor, dict[str, float]]:
+    """Score rollout responses and normalize rewards independently within each group."""
+    if group_size <= 0:
+        raise ValueError("group_size must be positive")
+    if len(rollout_responses) != len(repeated_ground_truths):
+        raise ValueError("rollout_responses and repeated_ground_truths must have the same length")
+    if len(rollout_responses) % group_size != 0:
+        raise ValueError("rollout_responses length must be divisible by group_size")
+
+    raw_reward_values = [
+        float(reward_fn(response, ground_truth)["reward"])
+        for response, ground_truth in zip(rollout_responses, repeated_ground_truths, strict=True)
+    ]
+    raw_rewards = torch.tensor(raw_reward_values, dtype=torch.float32)
+
+    grouped_rewards = raw_rewards.reshape(-1, group_size)
+    group_means = grouped_rewards.mean(dim=1, keepdim=True)
+    centered_rewards = grouped_rewards - group_means
+
+    if normalize_by_std:
+        group_stds = grouped_rewards.std(dim=1, keepdim=True)
+        advantages = centered_rewards / (group_stds + advantage_eps)
+    else:
+        group_stds = grouped_rewards.std(dim=1, keepdim=True)
+        advantages = centered_rewards
+
+    metadata = {
+        "reward_mean": raw_rewards.mean().item(),
+        "reward_std": raw_rewards.std(unbiased=False).item(),
+        "reward_min": raw_rewards.min().item(),
+        "reward_max": raw_rewards.max().item(),
+        "group_reward_mean": group_means.mean().item(),
+        "group_reward_std": group_stds.mean().item(),
+        "advantage_mean": advantages.mean().item(),
+        "advantage_std": advantages.std(unbiased=False).item(),
+    }
+    return advantages.reshape(-1), raw_rewards, metadata
+
+
 def get_response_log_probs(
     model: PreTrainedModel,
     input_ids: Tensor,
