@@ -250,7 +250,12 @@ def main() -> None:
 
     prompt_template = Path(args.prompt_path).read_text()
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     torch_dtype = torch.bfloat16 if args.bf16 and torch.cuda.is_available() else None
 
     tokenizer_source = args.resume_from_checkpoint or resolve_model_source(args.model_name_or_path)
