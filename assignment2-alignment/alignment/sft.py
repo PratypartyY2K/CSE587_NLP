@@ -147,6 +147,31 @@ def masked_normalize(
     return masked_tensor.sum(dim=dim) / normalize_constant
 
 
+def compute_naive_policy_gradient_loss(
+    raw_rewards_or_advantages: torch.Tensor,
+    policy_log_probs: torch.Tensor,
+) -> torch.Tensor:
+    """Compute the per-token policy-gradient loss with broadcasted rewards."""
+    return -policy_log_probs * raw_rewards_or_advantages
+
+
+def compute_grpo_clip_loss(
+    advantages: torch.Tensor,
+    policy_log_probs: torch.Tensor,
+    old_log_probs: torch.Tensor,
+    cliprange: float,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    """Compute the per-token clipped GRPO objective and clipping metadata."""
+    ratio = torch.exp(policy_log_probs - old_log_probs)
+    clipped_ratio = torch.clamp(ratio, 1.0 - cliprange, 1.0 + cliprange)
+
+    unclipped_objective = ratio * advantages
+    clipped_objective = clipped_ratio * advantages
+    loss = -torch.minimum(unclipped_objective, clipped_objective)
+
+    return loss, {"clipped": clipped_objective < unclipped_objective}
+
+
 def sft_microbatch_train_step(
     policy_log_probs: torch.Tensor,
     response_mask: torch.Tensor,

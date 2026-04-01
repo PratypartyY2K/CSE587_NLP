@@ -9,6 +9,8 @@ from torch.utils.data import Dataset
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
 
 from alignment.sft import (
+    compute_grpo_clip_loss,
+    compute_naive_policy_gradient_loss,
     compute_group_normalized_rewards,
     compute_entropy,
     get_response_log_probs,
@@ -158,7 +160,10 @@ def run_compute_naive_policy_gradient_loss(
         torch.Tensor of shape (batch_size, sequence_length): 
             the policy gradient per-token loss.
     """
-    return -policy_log_probs * raw_rewards_or_advantages
+    return compute_naive_policy_gradient_loss(
+        raw_rewards_or_advantages=raw_rewards_or_advantages,
+        policy_log_probs=policy_log_probs,
+    )
 
 
 def run_compute_grpo_clip_loss(
@@ -185,7 +190,12 @@ def run_compute_grpo_clip_loss(
             dict[str, torch.Tensor]: metadata for the GRPO-Clip loss 
                 (used to compute clip fraction).
     """
-    raise NotImplementedError
+    return compute_grpo_clip_loss(
+        advantages=advantages,
+        policy_log_probs=policy_log_probs,
+        old_log_probs=old_log_probs,
+        cliprange=cliprange,
+    )
 
 
 def run_compute_policy_gradient_loss(
