@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 import torch
 from torch import Tensor
 from transformers import PreTrainedModel, PreTrainedTokenizerBase
@@ -170,6 +172,50 @@ def compute_grpo_clip_loss(
     loss = -torch.minimum(unclipped_objective, clipped_objective)
 
     return loss, {"clipped": clipped_objective < unclipped_objective}
+
+
+def compute_policy_gradient_loss(
+    policy_log_probs: torch.Tensor,
+    loss_type: Literal["no_baseline", "reinforce_with_baseline", "grpo_clip"],
+    raw_rewards: torch.Tensor | None = None,
+    advantages: torch.Tensor | None = None,
+    old_log_probs: torch.Tensor | None = None,
+    cliprange: float | None = None,
+) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    """Dispatch to the requested policy-gradient loss and collect metadata."""
+    if loss_type == "no_baseline":
+        if raw_rewards is None:
+            raise ValueError("raw_rewards must be provided for loss_type='no_baseline'")
+        loss = compute_naive_policy_gradient_loss(
+            raw_rewards_or_advantages=raw_rewards,
+            policy_log_probs=policy_log_probs,
+        )
+        return loss, {}
+
+    if loss_type == "reinforce_with_baseline":
+        if advantages is None:
+            raise ValueError("advantages must be provided for loss_type='reinforce_with_baseline'")
+        loss = compute_naive_policy_gradient_loss(
+            raw_rewards_or_advantages=advantages,
+            policy_log_probs=policy_log_probs,
+        )
+        return loss, {}
+
+    if loss_type == "grpo_clip":
+        if advantages is None:
+            raise ValueError("advantages must be provided for loss_type='grpo_clip'")
+        if old_log_probs is None:
+            raise ValueError("old_log_probs must be provided for loss_type='grpo_clip'")
+        if cliprange is None:
+            raise ValueError("cliprange must be provided for loss_type='grpo_clip'")
+        return compute_grpo_clip_loss(
+            advantages=advantages,
+            policy_log_probs=policy_log_probs,
+            old_log_probs=old_log_probs,
+            cliprange=cliprange,
+        )
+
+    raise ValueError(f"Unsupported loss_type: {loss_type}")
 
 
 def sft_microbatch_train_step(
