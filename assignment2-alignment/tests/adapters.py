@@ -14,12 +14,19 @@ from alignment.sft import (
     compute_policy_gradient_loss,
     compute_group_normalized_rewards,
     compute_entropy,
-    get_response_log_probs,
     grpo_microbatch_train_step,
     masked_mean,
     masked_normalize,
     sft_microbatch_train_step,
-    tokenize_prompt_and_output,
+)
+from tests.adapter_impl import (
+    get_packed_sft_dataset_impl,
+    run_compute_per_instance_dpo_loss_impl,
+    run_get_response_log_probs_impl,
+    run_iterate_batches_impl,
+    run_parse_gsm8k_response_impl,
+    run_parse_mmlu_response_impl,
+    run_tokenize_prompt_and_output_impl,
 )
 
 
@@ -45,7 +52,7 @@ def run_tokenize_prompt_and_output(
             "response_mask": torch.Tensor of shape (batch_size, max(prompt_and_output_lens) - 1):
                 a mask on the response tokens in `labels`.
     """
-    return tokenize_prompt_and_output(
+    return run_tokenize_prompt_and_output_impl(
         prompt_strs=prompt_strs,
         output_strs=output_strs,
         tokenizer=tokenizer,
@@ -59,7 +66,7 @@ def run_compute_group_normalized_rewards(
     group_size: int,
     advantage_eps: float,
     normalize_by_std: bool,
-) -> tuple[torch.Tensor, dict[str, float]]:
+) -> tuple[Tensor, Tensor, dict[str, float]]:
     """
     Compute rewards for each group of rollout responses, 
     normalized by the group size.
@@ -139,7 +146,7 @@ def run_get_response_log_probs(
                 we have not masked out the token indices corresponding to the prompt
                 or padding; that is done in the train loop.
     """
-    return get_response_log_probs(
+    return run_get_response_log_probs_impl(
         model=model,
         input_ids=input_ids,
         labels=labels,
@@ -203,7 +210,7 @@ def run_compute_grpo_clip_loss(
 
 def run_compute_policy_gradient_loss(
     policy_log_probs: torch.Tensor,
-    loss_type: str,
+    loss_type: Literal["no_baseline", "reinforce_with_baseline", "grpo_clip"],
     raw_rewards: torch.Tensor,
     advantages: torch.Tensor,
     old_log_probs: torch.Tensor,
@@ -288,9 +295,6 @@ def run_grpo_microbatch_train_step(
             Needed for loss_type="grpo_clip".
         cliprange: float | None, the clip range for the ratio. 
             Needed for loss_type="grpo_clip".
-        constant_normalize_factor: int | None, provided if we want to sum over 
-            the sequence dimension and normalize by this constant factor
-            (as in Dr. GRPO).
 
     Returns:
         tuple[torch.Tensor, dict[str, torch.Tensor]]: 
@@ -371,7 +375,12 @@ def get_packed_sft_dataset(
         "input_ids" contains the token IDs for the language modeling inputs, and "labels" contains
         the token IDs for the language modeling labels.
     """
-    raise NotImplementedError
+    return get_packed_sft_dataset_impl(
+        tokenizer=tokenizer,
+        dataset_path=dataset_path,
+        seq_length=seq_length,
+        shuffle=shuffle,
+    )
 
 
 def run_iterate_batches(
@@ -394,7 +403,11 @@ def run_iterate_batches(
     Returns:
         Iterable over batches, where each batch has size `batch_size`.
     """
-    raise NotImplementedError
+    return run_iterate_batches_impl(
+        dataset=dataset,
+        batch_size=batch_size,
+        shuffle=shuffle,
+    )
 
 
 def run_parse_mmlu_response(
@@ -420,7 +433,10 @@ def run_parse_mmlu_response(
         str (one of "A", "B", "C", or "D") if the model output can be parsed into a prediction,
         else None.
     """
-    raise NotImplementedError
+    return run_parse_mmlu_response_impl(
+        mmlu_example=mmlu_example,
+        model_output=model_output,
+    )
 
 
 def run_parse_gsm8k_response(
@@ -437,7 +453,7 @@ def run_parse_gsm8k_response(
         str with the predicted numeric answer if the model output can be parsed into a prediction,
         else None.
     """
-    raise NotImplementedError
+    return run_parse_gsm8k_response_impl(model_output=model_output)
 
 
 def run_compute_per_instance_dpo_loss(
@@ -472,4 +488,12 @@ def run_compute_per_instance_dpo_loss(
     Returns:
         torch.Tensor with the DPO loss for this example.
     """
-    raise NotImplementedError
+    return run_compute_per_instance_dpo_loss_impl(
+        lm=lm,
+        lm_ref=lm_ref,
+        tokenizer=tokenizer,
+        beta=beta,
+        prompt=prompt,
+        response_chosen=response_chosen,
+        response_rejected=response_rejected,
+    )
