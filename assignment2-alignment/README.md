@@ -49,3 +49,13 @@ uv run python scripts/evaluate_math_zero_shot.py \
   --output-dir outputs/custom_eval \
   --model-name-or-path Qwen/Qwen2.5-Math-1.5B
 ```
+
+## Tests
+
+Run the full test suite with:
+
+```bash
+uv run pytest
+```
+
+The test harness adapters live in [tests/adapters.py](/Users/pratyushkumar/Desktop/Pratyush/PennState/Spring%202026/NLP/Assignments/assignment2-alignment/tests/adapters.py). The heavier fixture-specific helper logic is kept in [tests/adapter_impl.py](/Users/pratyushkumar/Desktop/Pratyush/PennState/Spring%202026/NLP/Assignments/assignment2-alignment/tests/adapter_impl.py) so the adapter wrapper file stays small.
