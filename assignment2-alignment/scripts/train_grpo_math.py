@@ -69,6 +69,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gradient-checkpointing", action="store_true")
     parser.add_argument("--bf16", action="store_true")
     parser.add_argument("--fp16", action="store_true")
+    parser.add_argument("--fail-on-nonfinite", action="store_true")
     return parser.parse_args()
 
 
@@ -107,6 +108,10 @@ def normalize_generated_response(text: str) -> str:
     if text.strip():
         return text
     return "<answer></answer>"
+
+
+def is_finite_tensor(tensor: torch.Tensor) -> bool:
+    return bool(torch.isfinite(tensor).all().item())
 
 
 def prepare_model_inputs(
@@ -331,6 +336,7 @@ def rollout_batch(
         device=device,
         batch_size=old_log_prob_batch_size,
     )
+    old_log_probs = torch.nan_to_num(old_log_probs, nan=0.0, posinf=0.0, neginf=0.0)
 
     response_lengths = tokenized["response_mask"].sum(dim=1).float()
     rollout_metrics = {
@@ -366,6 +372,7 @@ def train_on_rollouts(
     gradient_accumulation_steps: int,
     ppo_epochs: int,
     cliprange: float,
+    fail_on_nonfinite: bool,
 ) -> dict[str, float]:
     model.train()
     optimizer.zero_grad(set_to_none=True)
@@ -384,6 +391,11 @@ def train_on_rollouts(
     mean_token_log_probs: list[float] = []
     mean_response_entropies: list[float] = []
     optimizer_steps = 0
+    skipped_microbatches = 0
+    skipped_zero_advantage_batches = 0
+
+    if not is_finite_tensor(old_log_probs):
+        raise RuntimeError("Encountered non-finite old_log_probs before training.")
 
     for _ in range(ppo_epochs):
         permutation = torch.randperm(batch_size)
@@ -400,6 +412,12 @@ def train_on_rollouts(
                 "raw_rewards": raw_rewards[idx].to(device),
                 "old_log_probs": old_log_probs[idx].to(device),
             }
+            if microbatch["response_mask"].sum().item() == 0:
+                skipped_microbatches += 1
+                continue
+            if float(microbatch["advantages"].abs().sum().item()) == 0.0:
+                skipped_zero_advantage_batches += 1
+                continue
 
             outputs = get_response_log_probs(
                 model,
@@ -408,6 +426,28 @@ def train_on_rollouts(
                 attention_mask=microbatch["attention_mask"],
                 return_token_entropy=True,
             )
+            outputs["log_probs"] = torch.nan_to_num(outputs["log_probs"], nan=0.0, posinf=0.0, neginf=0.0)
+            outputs["token_entropy"] = torch.nan_to_num(
+                outputs["token_entropy"],
+                nan=0.0,
+                posinf=0.0,
+                neginf=0.0,
+            )
+            tensors_to_check = {
+                "policy_log_probs": outputs["log_probs"],
+                "token_entropy": outputs["token_entropy"],
+                "advantages": microbatch["advantages"],
+                "old_log_probs": microbatch["old_log_probs"],
+            }
+            bad_name = next((name for name, tensor in tensors_to_check.items() if not is_finite_tensor(tensor)), None)
+            if bad_name is not None:
+                if fail_on_nonfinite:
+                    raise RuntimeError(f"Encountered non-finite tensor in training microbatch: {bad_name}")
+                skipped_microbatches += 1
+                optimizer.zero_grad(set_to_none=True)
+                accumulation_count = 0
+                continue
+
             loss, metadata = grpo_microbatch_train_step(
                 policy_log_probs=outputs["log_probs"],
                 response_mask=microbatch["response_mask"],
@@ -418,6 +458,13 @@ def train_on_rollouts(
                 old_log_probs=microbatch["old_log_probs"],
                 cliprange=cliprange,
             )
+            if not is_finite_tensor(loss):
+                if fail_on_nonfinite:
+                    raise RuntimeError("Encountered non-finite loss during GRPO training.")
+                skipped_microbatches += 1
+                optimizer.zero_grad(set_to_none=True)
+                accumulation_count = 0
+                continue
             train_losses.append(float(metadata["pg_loss"].cpu()))
             mean_token_log_probs.append(
                 float(masked_mean(outputs["log_probs"].detach(), microbatch["response_mask"]).cpu())
@@ -445,6 +492,8 @@ def train_on_rollouts(
         "train_log_prob": mean(mean_token_log_probs) if mean_token_log_probs else 0.0,
         "train_entropy": mean(mean_response_entropies) if mean_response_entropies else 0.0,
         "optimizer_steps": optimizer_steps,
+        "skipped_microbatches": skipped_microbatches,
+        "skipped_zero_advantage_batches": skipped_zero_advantage_batches,
         "learning_rate": scheduler.get_last_lr()[0],
     }
 
@@ -577,6 +626,7 @@ def main() -> None:
             gradient_accumulation_steps=args.gradient_accumulation_steps,
             ppo_epochs=args.ppo_epochs,
             cliprange=args.cliprange,
+            fail_on_nonfinite=args.fail_on_nonfinite,
         )
         row: dict[str, Any] = {
             "step": step,
