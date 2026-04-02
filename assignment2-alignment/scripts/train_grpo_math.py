@@ -51,6 +51,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ppo-epochs", type=int, default=1)
     parser.add_argument("--per-device-train-batch-size", type=int, default=2)
     parser.add_argument("--gradient-accumulation-steps", type=int, default=4)
+    parser.add_argument("--old-log-prob-batch-size", type=int, default=2)
     parser.add_argument("--learning-rate", type=float, default=1e-6)
     parser.add_argument("--weight-decay", type=float, default=0.0)
     parser.add_argument("--warmup-ratio", type=float, default=0.1)
@@ -129,6 +130,33 @@ def prepare_model_inputs(
         "response_mask": response_mask,
         "attention_mask": attention_mask,
     }
+
+
+@torch.no_grad()
+def compute_old_log_probs_batched(
+    model,
+    *,
+    input_ids: torch.Tensor,
+    labels: torch.Tensor,
+    attention_mask: torch.Tensor,
+    device: torch.device,
+    batch_size: int,
+) -> torch.Tensor:
+    old_log_probs_chunks: list[torch.Tensor] = []
+    for start in range(0, input_ids.shape[0], batch_size):
+        end = start + batch_size
+        batch_input_ids = input_ids[start:end].to(device)
+        batch_labels = labels[start:end].to(device)
+        batch_attention_mask = attention_mask[start:end].to(device)
+        logits = model(input_ids=batch_input_ids, attention_mask=batch_attention_mask).logits
+        log_probs = torch.log_softmax(logits, dim=-1)
+        batch_old_log_probs = torch.gather(
+            log_probs,
+            dim=-1,
+            index=batch_labels.unsqueeze(-1),
+        ).squeeze(-1)
+        old_log_probs_chunks.append(batch_old_log_probs.cpu())
+    return torch.cat(old_log_probs_chunks, dim=0)
 
 
 @torch.no_grad()
@@ -258,6 +286,7 @@ def rollout_batch(
     max_seq_length: int,
     advantage_eps: float,
     normalize_by_std: bool,
+    old_log_prob_batch_size: int,
 ) -> dict[str, Any]:
     model.eval()
 
@@ -292,17 +321,14 @@ def rollout_batch(
         responses=responses,
         max_seq_length=max_seq_length,
     )
-    device_batch = {
-        key: value.to(device)
-        for key, value in tokenized.items()
-    }
-    with torch.no_grad():
-        old_log_probs = get_response_log_probs(
-            model,
-            input_ids=device_batch["input_ids"],
-            labels=device_batch["labels"],
-            return_token_entropy=False,
-        )["log_probs"].detach().cpu()
+    old_log_probs = compute_old_log_probs_batched(
+        model,
+        input_ids=tokenized["input_ids"],
+        labels=tokenized["labels"],
+        attention_mask=tokenized["attention_mask"],
+        device=device,
+        batch_size=old_log_prob_batch_size,
+    )
 
     response_lengths = tokenized["response_mask"].sum(dim=1).float()
     rollout_metrics = {
@@ -377,6 +403,7 @@ def train_on_rollouts(
                 model,
                 input_ids=microbatch["input_ids"],
                 labels=microbatch["labels"],
+                attention_mask=microbatch["attention_mask"],
                 return_token_entropy=True,
             )
             loss, metadata = grpo_microbatch_train_step(
@@ -528,6 +555,7 @@ def main() -> None:
             max_seq_length=args.max_seq_length,
             advantage_eps=args.advantage_eps,
             normalize_by_std=not args.no_normalize_by_std,
+            old_log_prob_batch_size=args.old_log_prob_batch_size,
         )
         log_generations(
             prompts=rollout_data["prompts"][: args.sample_rollouts_to_log],

@@ -121,10 +121,14 @@ def get_response_log_probs(
     model: PreTrainedModel,
     input_ids: Tensor,
     labels: Tensor,
+    attention_mask: Tensor | None = None,
     return_token_entropy: bool = False,
 ) -> dict[str, Tensor]:
     """Get per-token conditional log-probabilities and optional token entropy."""
-    logits = model(input_ids).logits
+    model_kwargs = {"input_ids": input_ids}
+    if attention_mask is not None:
+        model_kwargs["attention_mask"] = attention_mask
+    logits = model(**model_kwargs).logits
     log_probs = torch.log_softmax(logits, dim=-1)
 
     output = {
