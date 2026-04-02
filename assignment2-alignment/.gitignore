@@ -1,6 +1,8 @@
 *.bin
 models/
 data/
+.DS_Store
+**/.DS_Store
 
 nav
 tags
@@ -169,3 +171,4 @@ cython_debug/
 vllm-0.17.
 
 outputs/**/checkpoint*/
+outputs/grpo_gpt2_mac_smoke/
