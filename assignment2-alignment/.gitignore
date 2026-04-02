@@ -172,3 +172,5 @@ vllm-0.17.
 
 outputs/**/checkpoint*/
 outputs/grpo_gpt2_mac_smoke/
+
+*.pid
