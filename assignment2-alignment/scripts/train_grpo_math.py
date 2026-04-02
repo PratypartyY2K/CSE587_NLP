@@ -187,10 +187,12 @@ def generate_responses(
         "do_sample": sample,
         "pad_token_id": tokenizer.pad_token_id,
         "eos_token_id": tokenizer.eos_token_id,
+        "remove_invalid_values": True,
     }
     if sample:
         generation_kwargs["temperature"] = temperature
         generation_kwargs["top_p"] = top_p
+        generation_kwargs["renormalize_logits"] = True
 
     generated = model.generate(**generation_kwargs)
 
