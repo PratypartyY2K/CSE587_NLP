@@ -23,7 +23,7 @@ dependencies = [
 
 
 [tool.setuptools.packages.find]
-include = ["cs336_basics"]
+include = ["basics"]
 
 
 [tool.uv]
