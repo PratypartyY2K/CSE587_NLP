@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import statistics
 import timeit
 
 import torch
@@ -130,13 +131,15 @@ def benchmark(
 
 def format_results(durations: list[float], batch_size: int, context_length: int) -> str:
     total = sum(durations)
-    avg = total / len(durations)
+    avg = statistics.mean(durations)
+    std = statistics.stdev(durations) if len(durations) > 1 else 0.0
     tokens_per_step = batch_size * context_length
     steps_per_second = math.inf if total == 0 else len(durations) / total
     return "\n".join(
         [
             f"total_time_s: {total:.6f}",
-            f"avg_step_time_s: {avg:.6f}",
+            f"mean_step_time_s: {avg:.6f}",
+            f"std_step_time_s: {std:.6f}",
             f"steps_per_second: {steps_per_second:.4f}",
             f"tokens_per_second: {steps_per_second * tokens_per_step:.4f}",
             f"min_step_time_s: {min(durations):.6f}",
