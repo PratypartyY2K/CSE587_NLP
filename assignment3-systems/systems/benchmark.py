@@ -73,6 +73,11 @@ def parse_args() -> argparse.Namespace:
         help="Optional autocast dtype for mixed precision. Keeps model parameters in --dtype.",
     )
     parser.add_argument(
+        "--compile-model",
+        action="store_true",
+        help="Compile the full Transformer model with torch.compile before benchmarking.",
+    )
+    parser.add_argument(
         "--memory-profile-path",
         type=str,
         default=None,
@@ -337,6 +342,8 @@ def main() -> None:
         d_ff=args.d_ff,
         rope_theta=args.rope_theta,
     ).to(device=device, dtype=args.dtype)
+    if args.compile_model:
+        model = torch.compile(model)
     model.train(args.mode != "forward")
     optimizer = AdamW(model.parameters()) if args.mode == "train-step" else None
 
@@ -378,6 +385,7 @@ def main() -> None:
     print(f"device: {device}")
     print(f"dtype: {args.dtype}")
     print(f"autocast_dtype: {args.autocast_dtype}")
+    print(f"compile_model: {args.compile_model}")
     print(f"mode: {args.mode}")
     if args.model_size is not None:
         print(f"model_size: {args.model_size}")
