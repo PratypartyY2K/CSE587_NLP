@@ -70,6 +70,12 @@ def parse_args() -> argparse.Namespace:
         default="none",
         help="Optional autocast dtype for mixed precision. Keeps model parameters in --dtype.",
     )
+    parser.add_argument(
+        "--memory-profile-path",
+        type=str,
+        default=None,
+        help="Optional path to write a CUDA memory snapshot for one measured step.",
+    )
     return parser.parse_args()
 
 
@@ -102,6 +108,8 @@ def validate_args(args: argparse.Namespace) -> None:
         raise ValueError("Mixed precision autocast expects FP32 model parameters; set --dtype=float32.")
     if args.autocast_dtype is not None and not str(args.device).startswith("cuda"):
         raise ValueError("Autocast benchmarking is only supported on CUDA for this script.")
+    if args.memory_profile_path is not None and not str(args.device).startswith("cuda"):
+        raise ValueError("CUDA memory profiling is only supported on CUDA for this script.")
 
 
 def apply_model_preset(args: argparse.Namespace) -> None:
@@ -230,6 +238,48 @@ def benchmark(
     return durations
 
 
+def capture_memory_snapshot(
+    model: BasicsTransformerLM,
+    optimizer: AdamW | None,
+    inputs: torch.Tensor,
+    targets: torch.Tensor,
+    warmup_steps: int,
+    mode: str,
+    device: torch.device,
+    autocast_dtype: torch.dtype | None,
+    snapshot_path: str,
+) -> dict[str, float]:
+    for _ in range(warmup_steps):
+        run_step(
+            model,
+            optimizer,
+            inputs,
+            targets,
+            mode=mode,
+            device=device,
+            autocast_dtype=autocast_dtype,
+        )
+
+    torch.cuda.empty_cache()
+    torch.cuda.reset_peak_memory_stats(device)
+    torch.cuda.memory._record_memory_history(enabled="all")
+    try:
+        timings = run_step(
+            model,
+            optimizer,
+            inputs,
+            targets,
+            mode=mode,
+            device=device,
+            autocast_dtype=autocast_dtype,
+        )
+        torch.cuda.memory._dump_snapshot(snapshot_path)
+    finally:
+        torch.cuda.memory._record_memory_history(enabled=None)
+
+    return timings
+
+
 def summarize_timings(durations: list[dict[str, float]], key: str) -> tuple[float, float, float, float]:
     values = [step[key] for step in durations if key in step]
     total = sum(values)
@@ -293,17 +343,32 @@ def main() -> None:
     )
 
     synchronize_if_needed(device)
-    durations = benchmark(
-        model=model,
-        optimizer=optimizer,
-        inputs=inputs,
-        targets=targets,
-        warmup_steps=args.warmup_steps,
-        steps=args.steps,
-        mode=args.mode,
-        device=device,
-        autocast_dtype=args.autocast_dtype,
-    )
+    if args.memory_profile_path is None:
+        durations = benchmark(
+            model=model,
+            optimizer=optimizer,
+            inputs=inputs,
+            targets=targets,
+            warmup_steps=args.warmup_steps,
+            steps=args.steps,
+            mode=args.mode,
+            device=device,
+            autocast_dtype=args.autocast_dtype,
+        )
+    else:
+        durations = [
+            capture_memory_snapshot(
+                model=model,
+                optimizer=optimizer,
+                inputs=inputs,
+                targets=targets,
+                warmup_steps=args.warmup_steps,
+                mode=args.mode,
+                device=device,
+                autocast_dtype=args.autocast_dtype,
+                snapshot_path=args.memory_profile_path,
+            )
+        ]
 
     print(f"device: {device}")
     print(f"dtype: {args.dtype}")
@@ -312,6 +377,10 @@ def main() -> None:
     if args.model_size is not None:
         print(f"model_size: {args.model_size}")
     print(f"parameters: {sum(p.numel() for p in model.parameters())}")
+    if args.memory_profile_path is not None:
+        print(f"memory_profile_path: {args.memory_profile_path}")
+        print(f"max_memory_allocated_bytes: {torch.cuda.max_memory_allocated(device)}")
+        print(f"max_memory_reserved_bytes: {torch.cuda.max_memory_reserved(device)}")
     print(format_results(durations, batch_size=args.batch_size, context_length=args.context_length))
 
 
