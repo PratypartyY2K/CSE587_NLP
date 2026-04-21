@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
+import pickle
 import statistics
 import timeit
 from contextlib import nullcontext
@@ -260,9 +262,10 @@ def capture_memory_snapshot(
             autocast_dtype=autocast_dtype,
         )
 
+    os.makedirs(os.path.dirname(snapshot_path) or ".", exist_ok=True)
     torch.cuda.empty_cache()
     torch.cuda.reset_peak_memory_stats(device)
-    torch.cuda.memory._record_memory_history(enabled="all")
+    torch.cuda.memory._record_memory_history(enabled="all", device=device)
     try:
         timings = run_step(
             model,
@@ -273,9 +276,11 @@ def capture_memory_snapshot(
             device=device,
             autocast_dtype=autocast_dtype,
         )
-        torch.cuda.memory._dump_snapshot(snapshot_path)
+        snapshot = torch.cuda.memory._snapshot(device=device)
+        with open(snapshot_path, "wb") as f:
+            pickle.dump(snapshot, f)
     finally:
-        torch.cuda.memory._record_memory_history(enabled=None)
+        torch.cuda.memory._record_memory_history(enabled=None, device=device)
 
     return timings
 
