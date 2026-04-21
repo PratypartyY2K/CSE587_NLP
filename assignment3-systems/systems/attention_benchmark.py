@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import math
 import timeit
 
 import torch
@@ -22,6 +21,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dtype", choices=("float32", "float16", "bfloat16"), default="float32")
     parser.add_argument("--warmup-steps", type=int, default=10)
     parser.add_argument("--steps", type=int, default=100)
+    parser.add_argument(
+        "--include-compiled",
+        action="store_true",
+        help="Also benchmark a torch.compile version of the attention function.",
+    )
     parser.add_argument(
         "--d-models",
         type=int,
@@ -86,18 +90,19 @@ def benchmark_forward(
     dtype: torch.dtype,
     warmup_steps: int,
     steps: int,
+    attention_fn,
 ) -> float:
     q, k, v = make_inputs(batch_size, sequence_length, d_model, device, dtype, requires_grad=False)
     mask = causal_mask(batch_size, sequence_length, device)
 
     for _ in range(warmup_steps):
-        _ = scaled_dot_product_attention(q, k, v, mask)
+        _ = attention_fn(q, k, v, mask)
         synchronize(device)
 
     durations = []
     for _ in range(steps):
         start = timeit.default_timer()
-        _ = scaled_dot_product_attention(q, k, v, mask)
+        _ = attention_fn(q, k, v, mask)
         synchronize(device)
         durations.append(timeit.default_timer() - start)
     return sum(durations) / len(durations)
@@ -111,12 +116,13 @@ def benchmark_backward(
     dtype: torch.dtype,
     warmup_steps: int,
     steps: int,
+    attention_fn,
 ) -> tuple[float, int]:
     mask = causal_mask(batch_size, sequence_length, device)
 
     def backward_iteration() -> tuple[float, int]:
         q, k, v = make_inputs(batch_size, sequence_length, d_model, device, dtype, requires_grad=True)
-        out = scaled_dot_product_attention(q, k, v, mask)
+        out = attention_fn(q, k, v, mask)
         loss = out.sum()
         synchronize(device)
         memory_before_backward = torch.cuda.memory_allocated(device) if device.type == "cuda" else 0
@@ -146,6 +152,10 @@ def format_bytes_as_gib(num_bytes: int) -> str:
     return f"{num_bytes / (1024 ** 3):.2f} GiB"
 
 
+def eager_attention(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    return scaled_dot_product_attention(q, k, v, mask)
+
+
 def main() -> None:
     args = parse_args()
     dtype = resolve_dtype(args.dtype)
@@ -154,47 +164,50 @@ def main() -> None:
     if device.type != "cuda":
         raise ValueError("This benchmark is intended for CUDA runs.")
 
-    print(
-        "| d_model | seq_len | forward_time_s | backward_time_s | memory_before_backward | status |"
-    )
-    print(
-        "| --- | --- | --- | --- | --- | --- |"
-    )
+    attention_variants: list[tuple[str, object]] = [("eager", eager_attention)]
+    if args.include_compiled:
+        attention_variants.append(("compiled", torch.compile(eager_attention)))
 
-    for d_model in args.d_models:
-        for sequence_length in args.sequence_lengths:
-            if device.type == "cuda":
-                torch.cuda.empty_cache()
-                torch.cuda.reset_peak_memory_stats(device)
-            try:
-                forward_time = benchmark_forward(
-                    batch_size=args.batch_size,
-                    sequence_length=sequence_length,
-                    d_model=d_model,
-                    device=device,
-                    dtype=dtype,
-                    warmup_steps=args.warmup_steps,
-                    steps=args.steps,
-                )
-                backward_time, memory_before_backward = benchmark_backward(
-                    batch_size=args.batch_size,
-                    sequence_length=sequence_length,
-                    d_model=d_model,
-                    device=device,
-                    dtype=dtype,
-                    warmup_steps=args.warmup_steps,
-                    steps=args.steps,
-                )
-                print(
-                    f"| {d_model} | {sequence_length} | {forward_time:.6f} | {backward_time:.6f} | "
-                    f"{format_bytes_as_gib(memory_before_backward)} | ok |"
-                )
-            except torch.OutOfMemoryError:
+    print("| variant | d_model | seq_len | forward_time_s | backward_time_s | memory_before_backward | status |")
+    print("| --- | --- | --- | --- | --- | --- | --- |")
+
+    for variant_name, attention_fn in attention_variants:
+        for d_model in args.d_models:
+            for sequence_length in args.sequence_lengths:
                 if device.type == "cuda":
                     torch.cuda.empty_cache()
-                print(
-                    f"| {d_model} | {sequence_length} | - | - | - | oom |"
-                )
+                    torch.cuda.reset_peak_memory_stats(device)
+                try:
+                    forward_time = benchmark_forward(
+                        batch_size=args.batch_size,
+                        sequence_length=sequence_length,
+                        d_model=d_model,
+                        device=device,
+                        dtype=dtype,
+                        warmup_steps=args.warmup_steps,
+                        steps=args.steps,
+                        attention_fn=attention_fn,
+                    )
+                    backward_time, memory_before_backward = benchmark_backward(
+                        batch_size=args.batch_size,
+                        sequence_length=sequence_length,
+                        d_model=d_model,
+                        device=device,
+                        dtype=dtype,
+                        warmup_steps=args.warmup_steps,
+                        steps=args.steps,
+                        attention_fn=attention_fn,
+                    )
+                    print(
+                        f"| {variant_name} | {d_model} | {sequence_length} | {forward_time:.6f} | "
+                        f"{backward_time:.6f} | {format_bytes_as_gib(memory_before_backward)} | ok |"
+                    )
+                except torch.OutOfMemoryError:
+                    if device.type == "cuda":
+                        torch.cuda.empty_cache()
+                    print(
+                        f"| {variant_name} | {d_model} | {sequence_length} | - | - | - | oom |"
+                    )
 
 
 if __name__ == "__main__":
