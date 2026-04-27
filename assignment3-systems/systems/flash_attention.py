@@ -72,6 +72,41 @@ def _flash_attention_forward_tiled(
     return output, lse
 
 
+def _flash_attention_backward_reference(
+    q: torch.Tensor,
+    k: torch.Tensor,
+    v: torch.Tensor,
+    o: torch.Tensor,
+    grad_output: torch.Tensor,
+    lse: torch.Tensor,
+    is_causal: bool = False,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    scale = 1.0 / math.sqrt(q.shape[-1])
+    scores = torch.matmul(q, k.transpose(-1, -2)) * scale
+
+    if is_causal:
+        n_queries = q.shape[-2]
+        n_keys = k.shape[-2]
+        q_positions = torch.arange(n_queries, device=q.device).unsqueeze(-1)
+        k_positions = torch.arange(n_keys, device=q.device).unsqueeze(0)
+        scores = torch.where(q_positions >= k_positions, scores, torch.full_like(scores, -1e6))
+
+    p = torch.exp(scores - lse.unsqueeze(-1))
+    dv = torch.matmul(p.transpose(-1, -2), grad_output)
+    dp = torch.matmul(grad_output, v.transpose(-1, -2))
+    d_vec = torch.sum(o * grad_output, dim=-1)
+    ds = p * (dp - d_vec.unsqueeze(-1))
+    dq = torch.matmul(ds, k) * scale
+    dk = torch.matmul(ds.transpose(-1, -2), q) * scale
+    return dq, dk, dv
+
+
+if hasattr(torch, "compile"):
+    _flash_attention_backward_compiled = torch.compile(_flash_attention_backward_reference, backend="eager")
+else:  # pragma: no cover - present for older PyTorch compatibility.
+    _flash_attention_backward_compiled = _flash_attention_backward_reference
+
+
 class FlashAttentionPytorchFunction(torch.autograd.Function):
     @staticmethod
     def forward(
@@ -91,20 +126,16 @@ class FlashAttentionPytorchFunction(torch.autograd.Function):
         ctx: torch.autograd.function.FunctionCtx,
         grad_output: torch.Tensor,
     ) -> tuple[torch.Tensor | None, torch.Tensor | None, torch.Tensor | None, None]:
-        _lse, q, k, v, _output = ctx.saved_tensors
-
-        with torch.enable_grad():
-            q_ref = q.detach().requires_grad_(True)
-            k_ref = k.detach().requires_grad_(True)
-            v_ref = v.detach().requires_grad_(True)
-            output_ref, _ = _flash_attention_forward_tiled(
-                q_ref,
-                k_ref,
-                v_ref,
-                is_causal=ctx.is_causal,
-            )
-            dq, dk, dv = torch.autograd.grad(output_ref, (q_ref, k_ref, v_ref), grad_output)
-
+        lse, q, k, v, output = ctx.saved_tensors
+        dq, dk, dv = _flash_attention_backward_compiled(
+            q,
+            k,
+            v,
+            output,
+            grad_output,
+            lse,
+            ctx.is_causal,
+        )
         return dq, dk, dv, None
 
 
@@ -261,18 +292,14 @@ class FlashAttentionTritonFunction(torch.autograd.Function):
         ctx: torch.autograd.function.FunctionCtx,
         grad_output: torch.Tensor,
     ) -> tuple[torch.Tensor | None, torch.Tensor | None, torch.Tensor | None, None]:
-        _lse, q, k, v, _output = ctx.saved_tensors
-
-        with torch.enable_grad():
-            q_ref = q.detach().requires_grad_(True)
-            k_ref = k.detach().requires_grad_(True)
-            v_ref = v.detach().requires_grad_(True)
-            output_ref, _ = _flash_attention_forward_tiled(
-                q_ref,
-                k_ref,
-                v_ref,
-                is_causal=ctx.is_causal,
-            )
-            dq, dk, dv = torch.autograd.grad(output_ref, (q_ref, k_ref, v_ref), grad_output)
-
+        lse, q, k, v, output = ctx.saved_tensors
+        dq, dk, dv = _flash_attention_backward_compiled(
+            q,
+            k,
+            v,
+            output,
+            grad_output,
+            lse,
+            ctx.is_causal,
+        )
         return dq, dk, dv, None
