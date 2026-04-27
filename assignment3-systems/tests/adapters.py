@@ -4,6 +4,8 @@ from typing import Type
 
 import torch
 
+from systems.flash_attention import FlashAttentionPytorchFunction
+
 
 
 def get_flashattention_autograd_function_pytorch() -> Type:
@@ -15,8 +17,7 @@ def get_flashattention_autograd_function_pytorch() -> Type:
     Returns:
         A class object (not an instance of the class)
     """
-    # For example: return MyFlashAttnAutogradFunctionClass
-    raise NotImplementedError
+    return FlashAttentionPytorchFunction
 
 
 def get_flashattention_autograd_function_triton() -> Type:
