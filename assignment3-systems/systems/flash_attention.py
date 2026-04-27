@@ -251,6 +251,14 @@ def _flash_attention_forward_triton(
     n_keys = k.shape[-2]
     scale = 1.0 / math.sqrt(d)
 
+    if q_tile_size is None:
+        q_tile_size = 64 if n_queries >= 2048 else 32
+    if k_tile_size is None:
+        if d <= 32:
+            k_tile_size = 128 if n_keys >= 2048 else 64
+        else:
+            k_tile_size = 64 if n_keys >= 2048 else 32
+
     output = torch.empty_like(v[:, :n_queries, :])
     lse = torch.empty((batch_size, n_queries), device=q.device, dtype=q.dtype)
 
